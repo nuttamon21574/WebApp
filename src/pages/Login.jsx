@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import Cardclass from '../components/Card/Cardclass.jsx'
 import AuthForm from '../components/Form/AuthForm.jsx'
-import SubmitButton from '../components/Button/SubmitButton.jsx'
 import ToSignup from '../components/Button/ToSignup.jsx'
 
 
 export default function Login() {
+
   return (
     <div className="min-h-screen w-screen flex items-center justify-center bg-gradient-to-tr from-[#CFCADD] to-[#4A318C]">
       
@@ -33,14 +33,7 @@ export default function Login() {
 
           <AuthForm type="login" />
 
-          <p className="text-sm text-left text-gray-600 mb-4">
-            Forgot your password?
-            <span className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer ml-1">
-              Click here!
-            </span>
-          </p>
-
-          <SubmitButton />
+        
         </Cardclass>
       </div>
 
