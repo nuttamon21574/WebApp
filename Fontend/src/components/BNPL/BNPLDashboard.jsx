@@ -53,14 +53,10 @@ export default function BNPLDashboard({
 
       {/* Details */}
       <div className="grid md:grid-cols-2 gap-y-6 gap-x-16 text-sm">
-        <BNPLDetailRow
-          label="Total Due Amount"
-          value={form?.total ?? "-"}
-        />
-        <BNPLDetailRow
-          label="Interest"
-          value={form?.interest ?? "-"}
-        />
+        <BNPLDetailRow label="Total Due Amount" value={form?.total ?? "-"} />
+        <BNPLDetailRow label="Interest" value={form?.interest ?? "-"} />
+        <BNPLDetailRow label="Monthly Payment" value={form?.monthlyPayment ?? "-"} />
+        <BNPLDetailRow label="Payment Due Date" value={form?.dueDate ?? "-"} />
       </div>
     </div>
   );
