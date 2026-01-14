@@ -57,7 +57,6 @@ export default function BNPLDashboard({
         <BNPLDetailRow label="Interest" value={form?.interest ?? "-"} />
         <BNPLDetailRow label="Monthly Payment" value={form?.monthlyPayment ?? "-"} />
         <BNPLDetailRow label="Payment Due Date" value={form?.dueDate ?? "-"} />
-        />
       </div>
     </div>
   );
