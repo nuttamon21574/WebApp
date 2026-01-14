@@ -8,6 +8,42 @@ export default function Sidebar() {
 
   const menuItems = [
     {
+      name: "Recommendation",
+      path: "/Recommendations",
+      icon: (
+        <svg className="w-5 h-5 me-2" fill="#2B1175" viewBox="0 0 24 24">
+          <path
+            fillRule="evenodd"
+            d="M9 7V2.221a2 2 0 0 0-.5.365L4.586 6.5a2 2 0 0 0-.365.5H9Zm2 0V2h7a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9h5a2 2 0 0 0 2-2Z"
+            clipRule="evenodd"
+          />
+        </svg>
+      ),
+    },
+
+        {
+      name: "Dashboard",
+      path: "/dashboard",
+      icon: (
+        <svg className="w-5 h-5 me-2" fill="#2B1175" viewBox="0 0 24 24">
+          <path d="M13.5 2a8.5 8.5 0 0 1 8.5 8.5h-9V3a1 1 0 0 0-1-1Z" />
+          <path d="M11 6a1 1 0 0 0-1-1A8.5 8.5 0 1 0 18 14h-7V6Z" />
+        </svg>
+      ),
+    },
+
+    {
+      name: "Buy Now Pay Later Debt",
+      path: "/bnpl",
+      icon: (
+        <svg className="w-5 h-5 me-2" fill="#2B1175" viewBox="0 0 18 18">
+          <path d="M12 14a3 3 0 0 1 3-3h4a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-4a3 3 0 0 1-3-3Z" />
+          <path d="M4.586 7A2 2 0 0 0 3 9v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2h-4a5 5 0 0 1 0-10h4" />
+        </svg>
+      ),
+    },
+
+    {
       name: "My Account",
       path: "/my-account",
       icon: (
@@ -20,39 +56,7 @@ export default function Sidebar() {
         </svg>
       ),
     },
-    {
-      name: "BNPL Debt",
-      path: "/bnpl",
-      icon: (
-        <svg className="w-5 h-5 me-2" fill="#2B1175" viewBox="0 0 18 18">
-          <path d="M12 14a3 3 0 0 1 3-3h4a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-4a3 3 0 0 1-3-3Z" />
-          <path d="M4.586 7A2 2 0 0 0 3 9v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2h-4a5 5 0 0 1 0-10h4" />
-        </svg>
-      ),
-    },
-    {
-      name: "Dashboard",
-      path: "/dashboard",
-      icon: (
-        <svg className="w-5 h-5 me-2" fill="#2B1175" viewBox="0 0 24 24">
-          <path d="M13.5 2a8.5 8.5 0 0 1 8.5 8.5h-9V3a1 1 0 0 0-1-1Z" />
-          <path d="M11 6a1 1 0 0 0-1-1A8.5 8.5 0 1 0 18 14h-7V6Z" />
-        </svg>
-      ),
-    },
-    {
-      name: "Recommendations",
-      path: "/Recommendations",
-      icon: (
-        <svg className="w-5 h-5 me-2" fill="#2B1175" viewBox="0 0 24 24">
-          <path
-            fillRule="evenodd"
-            d="M9 7V2.221a2 2 0 0 0-.5.365L4.586 6.5a2 2 0 0 0-.365.5H9Zm2 0V2h7a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9h5a2 2 0 0 0 2-2Z"
-            clipRule="evenodd"
-          />
-        </svg>
-      ),
-    },
+    
   ];
 
   const logoutItem = {
