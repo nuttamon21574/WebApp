@@ -8,7 +8,7 @@ export default function Sidebar() {
 
   const menuItems = [
     {
-      name: "Recommendations",
+      name: "Recommendation",
       path: "/Recommendations",
       icon: (
         <svg className="w-5 h-5 me-2" fill="#2B1175" viewBox="0 0 24 24">
