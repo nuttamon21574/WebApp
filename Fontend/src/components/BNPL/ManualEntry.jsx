@@ -4,17 +4,12 @@ import SaveButton from "../Button/SaveButton";
 
 export default function ManualEntry({ onCancel, onSave }) {
   const [form, setForm] = useState({
-    provider: "",
-    totalDue: "",
-    installments: "",
+    totalDebt: "",
+    outstandingBalance: "",
     monthlyPayment: "",
+    installments: "",
     interest: "",
-    startDate: "",
     dueDate: "",
-    paidInstallments: "",
-    status: "on_time",
-    monthlyIncome: "",
-    otherDebts: "",
   });
 
   const handleChange = (e) => {
@@ -23,76 +18,94 @@ export default function ManualEntry({ onCancel, onSave }) {
   };
 
   const isComplete =
-    form.totalDue &&
-    form.installments &&
+    form.totalDebt &&
+    form.outstandingBalance &&
     form.monthlyPayment &&
+    form.installments &&
     form.interest &&
-    form.startDate &&
     form.dueDate;
 
   const handleSave = () => {
     if (!isComplete) return;
-    onSave?.(form); // ส่งข้อมูลไป parent
-    // ❌ ไม่ต้อง navigate เพราะ parent จะ setMode("dashboard")
+    onSave?.(form);
   };
 
   return (
     <div className="space-y-10">
       <section>
         <h3 className="font-semibold mb-6">Debt Details</h3>
+
         <div className="grid grid-cols-2 gap-6 text-sm">
+          {/* Total Debt */}
           <div className="col-span-2">
-            <h4 className="font-semibold text-gray-800 mb-2">Total Due (THB)</h4>
+            <h4 className="font-semibold text-gray-800 mb-2">
+              Total Debt (Baht)
+            </h4>
             <input
-              name="totalDue"
-              value={form.totalDue}
+              name="totalDebt"
+              value={form.totalDebt}
               onChange={handleChange}
-              placeholder="Enter total amount"
               className="w-full border rounded-xl px-4 py-3 bg-white outline-none"
             />
           </div>
-          <div>
-            <h4 className="font-semibold text-gray-800 mb-2">Installments</h4>
+
+          {/* Outstanding Balance */}
+          <div className="col-span-2">
+            <h4 className="font-semibold text-gray-800 mb-2">
+              Outstanding Debt Balance (Baht)
+            </h4>
             <input
-              name="installments"
-              value={form.installments}
+              name="outstandingBalance"
+              value={form.outstandingBalance}
               onChange={handleChange}
-              placeholder="Number of installments"
               className="w-full border rounded-xl px-4 py-3 bg-white outline-none"
             />
           </div>
+
+          {/* Monthly Payment */}
           <div>
-            <h4 className="font-semibold text-gray-800 mb-2">Monthly Payment (THB)</h4>
+            <h4 className="font-semibold text-gray-800 mb-2">
+              Monthly Payment (Baht)
+            </h4>
             <input
               name="monthlyPayment"
               value={form.monthlyPayment}
               onChange={handleChange}
-              placeholder="Enter monthly payment"
               className="w-full border rounded-xl px-4 py-3 bg-white outline-none"
             />
           </div>
+
+          {/* Installments */}
           <div>
-            <h4 className="font-semibold text-gray-800 mb-2">Interest (%)</h4>
+            <h4 className="font-semibold text-gray-800 mb-2">
+              Number of Installments
+            </h4>
+            <input
+              name="installments"
+              value={form.installments}
+              onChange={handleChange}
+              className="w-full border rounded-xl px-4 py-3 bg-white outline-none"
+            />
+          </div>
+
+          {/* Interest */}
+          <div>
+            <h4 className="font-semibold text-gray-800 mb-2">
+              Interest (Baht)
+            </h4>
             <input
               name="interest"
               value={form.interest}
               onChange={handleChange}
-              placeholder="Enter interest"
               className="w-full border rounded-xl px-4 py-3 bg-white outline-none"
             />
           </div>
+
+          {/* Due Date */}
           <div>
-            <h4 className="font-semibold text-gray-800 mb-2">Start Date</h4>
-            <input
-              type="date"
-              name="startDate"
-              value={form.startDate}
-              onChange={handleChange}
-              className="w-full border rounded-xl px-4 py-3 bg-white outline-none"
-            />
-          </div>
-          <div>
-            <h4 className="font-semibold text-gray-800 mb-2">Due Date</h4>
+            <h4 className="font-semibold text-gray-800 mb-2">
+              Payment Due Date
+            </h4>
             <input
               type="date"
               name="dueDate"
