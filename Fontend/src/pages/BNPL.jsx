@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+
 import Sidebar from "../components/Sidebar/Sidebar";
 import BNPLName from "../components/Header/BNPLName";
 import EmptyBNPL from "../components/BNPL/EmptyBNPL";
@@ -6,16 +8,14 @@ import UploadPDF from "../components/BNPL/UploadPDF";
 import ManualEntry from "../components/BNPL/ManualEntry";
 import ModeSelector from "../components/BNPL/Mode";
 import CheckBNPL from "../components/BNPL/CheckBNPL";
-import BNPLDashboard from "../components/BNPL/BNPLDashboard";
 import BNPLProviderSelect from "../components/BNPL/BNPLProviderSelect";
-import AddButton from "../components/Button/AddButton";
 
 export default function BNPL() {
+  const navigate = useNavigate(); // ✅ ใช้สำหรับ redirect
+
   const [mode, setMode] = useState("empty");
   const [provider, setProvider] = useState("SPayLater");
   const [showCheckBNPL, setShowCheckBNPL] = useState(false);
-  const [showAddButton, setShowAddButton] = useState(false);
-  const [activeTab, setActiveTab] = useState("Total BNPL");
 
   const [form, setForm] = useState({
     total: "",
@@ -47,35 +47,24 @@ export default function BNPL() {
   return (
     <div className="min-h-screen w-screen bg-purple-950 px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
       <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-4 h-full">
+        
+        {/* Sidebar */}
         <Sidebar activeTab="BNPL" />
 
         <div className="flex flex-col mt-10 lg:mt-0">
           <BNPLName />
 
-          {/* Provider Select : แสดงเฉพาะ manual / pdf */}
+          {/* Provider Select (เฉพาะ manual / pdf) */}
           {(mode === "manual" || mode === "pdf") && (
             <div className="flex flex-col mb-4 gap-4">
               <BNPLProviderSelect value={provider} onChange={setProvider} />
             </div>
           )}
 
-          {/* ➕ Add Button */}
-          {mode === "dashboard" &&
-            showAddButton &&
-            ["Total BNPL", "SPayLater", "LazPayLater"].includes(activeTab) && (
-              <div className="fixed top-6 right-6 z-50">
-                <AddButton
-                  onClick={() => {
-                    resetBNPLFlow();
-                    setMode(provider === "LazPayLater" ? "manual" : "pdf");
-                  }}
-                />
-              </div>
-            )}
-
           <div className="bg-white rounded-3xl p-8 h-screen flex flex-col gap-6 overflow-auto">
-            {/* ModeSelector */}
-            {mode !== "empty" && mode !== "dashboard" && (
+            
+            {/* Mode Selector */}
+            {mode !== "empty" && (
               <ModeSelector
                 mode={mode}
                 provider={provider}
@@ -86,7 +75,7 @@ export default function BNPL() {
               />
             )}
 
-            {/* Empty */}
+            {/* Empty State */}
             {mode === "empty" && (
               <EmptyBNPL
                 onAdd={() => {
@@ -96,7 +85,7 @@ export default function BNPL() {
               />
             )}
 
-            {/* Manual */}
+            {/* Manual Entry */}
             {mode === "manual" && (
               <ManualEntry
                 onCancel={() => {
@@ -111,13 +100,14 @@ export default function BNPL() {
                     interest: data.interest,
                     dueDate: data.dueDate,
                   });
-                  setActiveTab("Total BNPL");
-                  setMode("dashboard");
+
+                  // ✅ SAVE เสร็จ → ไป Dashboard
+                  navigate("/dashboard");
                 }}
               />
             )}
 
-            {/* PDF */}
+            {/* PDF Upload */}
             {mode === "pdf" && (
               <div className="flex flex-col gap-10">
                 <UploadPDF
@@ -138,23 +128,14 @@ export default function BNPL() {
                       }))
                     }
                     onSave={() => {
-                      setActiveTab("Total BNPL");
-                      setMode("dashboard");
+                      // ✅ Confirm PDF → ไป Dashboard
+                      navigate("/dashboard");
                     }}
                   />
                 )}
               </div>
             )}
 
-            {/* Dashboard */}
-            {mode === "dashboard" && (
-              <BNPLDashboard
-                form={form}
-                onShowAdd={setShowAddButton}
-                activeTab={activeTab}
-                onChangeTab={setActiveTab}
-              />
-            )}
           </div>
         </div>
       </div>
