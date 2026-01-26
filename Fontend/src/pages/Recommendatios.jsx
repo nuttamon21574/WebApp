@@ -12,7 +12,7 @@ export default function Recommendations() {
     
               <div className="flex flex-col mt-10 lg:mt-0">
               <p className="text-2xl md:text-3xl font-bold text-amber-50">
-                Recommendations
+                Recommendation
                 </p>
                 <div className="mt-4 mb-8"><MonthPicker/></div>
 
