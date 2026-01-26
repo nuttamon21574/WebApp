@@ -3,41 +3,55 @@ import { useNavigate } from "react-router-dom";
 import { useState, useRef } from "react";
 import FormRow from "./FormRow";
 import SaveButton from "../Button/SaveButton";
-import UploadButton from "../Button/UploadButton";
-import CancelButton from "../Button/CancelButton";
-import UploadCreditBureauPopup from "../popup/UploadCredit";
 
 export default function FormContainer() {
   const navigate = useNavigate();
-  const [file, setFile] = useState(null);
   const fileRef = useRef(null);
+
+  const [file, setFile] = useState(null);
+
   const [form, setForm] = useState({
     gender: "",
     age: "",
     year: "",
     income: "",
-    expenses: "",
+
+    // แยกค่าใช้จ่าย
+    rent: "",
+    food: "",
+    transport: "",
+    other: "",
+
     spay: "",
     laz: "",
     creditBureau: null,
-    
   });
-  
-  const [password, setPassword] = useState("");
 
-  const isComplete = Object.values(form).every(v => v !== "" && v !== null);
-  
-  const selectedFile = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setFile(file);
-      setForm({ ...form, creditBureau: file });
-    }}
-  
-    const handleSelectFile = () => {
-      fileRef.current?.click();
-    };
-  
+  // รวมค่าใช้จ่ายทั้งหมด
+  const totalExpenses =
+    (Number(form.rent) || 0) +
+    (Number(form.food) || 0) +
+    (Number(form.transport) || 0) +
+    (Number(form.other) || 0);
+
+  // เช็คว่ากรอกครบ
+  const isComplete =
+    form.gender !== "" &&
+    form.age !== "" &&
+    form.year !== "" &&
+    form.income !== "" &&
+
+    // expenses
+    form.rent !== "" &&
+    form.food !== "" &&
+    form.transport !== "" &&
+    form.other !== "" &&
+
+    // BNPL
+    form.spay !== "" &&
+    form.laz !== "";
+
+
   return (
     <div>
       <h2 className="font-semibold mb-6 text-[#2B1166]">
@@ -50,7 +64,9 @@ export default function FormContainer() {
           <select
             className="rounded-xl px-4 py-2 bg-white w-full"
             value={form.gender}
-            onChange={e => setForm({ ...form, gender: e.target.value })}
+            onChange={(e) =>
+              setForm({ ...form, gender: e.target.value })
+            }
           >
             <option value="">Select</option>
             <option>Male</option>
@@ -65,7 +81,9 @@ export default function FormContainer() {
             type="number"
             className="rounded-xl px-4 py-2 bg-white w-full"
             value={form.age}
-            onChange={e => setForm({ ...form, age: e.target.value })}
+            onChange={(e) =>
+              setForm({ ...form, age: e.target.value })
+            }
           />
         </FormRow>
 
@@ -74,7 +92,9 @@ export default function FormContainer() {
           <select
             className="rounded-xl px-4 py-2 bg-white w-full"
             value={form.year}
-            onChange={e => setForm({ ...form, year: e.target.value })}
+            onChange={(e) =>
+              setForm({ ...form, year: e.target.value })
+            }
           >
             <option value="">Select</option>
             <option>Year 1</option>
@@ -92,19 +112,67 @@ export default function FormContainer() {
             type="number"
             className="rounded-xl px-4 py-2 bg-white w-full"
             value={form.income}
-            onChange={e => setForm({ ...form, income: e.target.value })}
+            onChange={(e) =>
+              setForm({ ...form, income: e.target.value })
+            }
           />
         </FormRow>
 
-        {/* Expenses */}
-        <FormRow label="Expenses">
+      {/* Expense Section */}
+      <div className="rounded-2xl p-4 bg-[#F1ECFF]">
+        <h3 className="font-medium text-[#2B1166] mb-4">
+          Expenses
+        </h3>
+
+        {/* Rent */}
+        <FormRow label="- Rent">
           <input
             type="number"
             className="rounded-xl px-4 py-2 bg-white w-full"
-            value={form.expenses}
-            onChange={e => setForm({ ...form, expenses: e.target.value })}
+            value={form.rent}
+            onChange={(e) =>
+              setForm({ ...form, rent: e.target.value })
+            }
           />
         </FormRow>
+
+        {/* Food */}
+        <FormRow label="- Food">
+          <input
+            type="number"
+            className="rounded-xl px-4 py-2 bg-white w-full"
+            value={form.food}
+            onChange={(e) =>
+              setForm({ ...form, food: e.target.value })
+            }
+          />
+        </FormRow>
+
+        {/* Transport */}
+        <FormRow label="- Transport">
+          <input
+            type="number"
+            className="rounded-xl px-4 py-2 bg-white w-full"
+            value={form.transport}
+            onChange={(e) =>
+              setForm({ ...form, transport: e.target.value })
+            }
+          />
+        </FormRow>
+
+        {/* Other Expenses */}
+        <FormRow label="- Other Expenses">
+          <input
+            type="number"
+            className="rounded-xl px-4 py-2 bg-white w-full"
+            value={form.other}
+            onChange={(e) =>
+              setForm({ ...form, other: e.target.value })
+            }
+          />
+        </FormRow>
+      </div>
+
 
         {/* SPayLater Limit */}
         <FormRow label="SPayLater Limit">
@@ -112,7 +180,9 @@ export default function FormContainer() {
             type="number"
             className="rounded-xl px-4 py-2 bg-white w-full"
             value={form.spay}
-            onChange={e => setForm({ ...form, spay: e.target.value })}
+            onChange={(e) =>
+              setForm({ ...form, spay: e.target.value })
+            }
           />
         </FormRow>
 
@@ -122,59 +192,27 @@ export default function FormContainer() {
             type="number"
             className="rounded-xl px-4 py-2 bg-white w-full"
             value={form.laz}
-            onChange={e => setForm({ ...form, laz: e.target.value })}
+            onChange={(e) =>
+              setForm({ ...form, laz: e.target.value })
+            }
           />
         </FormRow>
-      
+      </div>
 
-      {/* Credit Bureau Report */}
-<FormRow label="Credit Bureau Report">
-  <div className="flex items-center gap-4 w-full rounded-xl px-4 py-2 bg-white">
-    
-    {/* File name */}
-    <span className="flex-1 text-sm text-gray-700 truncate">
-      {file ? file.name : "No file selected"}
-    </span>
-
-    {/* Upload */}
-    <UploadButton
-      label="Upload"
-      onClick={handleSelectFile}
-    />
-
-    {/* Cancel */}
-    <CancelButton
-      onClick={() => {
-        setFile(null);
-        setPassword("");
-        setForm({ ...form, creditBureau: null });
-        if (fileRef.current) fileRef.current.value = "";
-      }}
-    />
-
-    {/* Hidden file input */}
-    <input
-      type="file"
-      ref={fileRef}
-      className="hidden"
-      accept=".pdf"
-      onChange={(e) => {
-        selectedFile(e);
-      }}
-    />
-  </div>
-</FormRow>
-
-
-        </div>
       {/* Save Button */}
       <div className="grid place-items-center h-full mt-10">
         <SaveButton
           isComplete={isComplete}
-          onClick={() => navigate("/bnpl")}
+          onClick={() =>
+            navigate("/bnpl", {
+              state: {
+                ...form,
+                expenses: totalExpenses,
+              },
+            })
+          }
         />
       </div>
-</div>
-
+    </div>
   );
 }
