@@ -15,6 +15,7 @@
     "firebase": "^12.7.0",
     "flowbite": "^4.0.1",
     "flowbite-datepicker": "^2.0.0",
+    "framer-motion": "^12.29.2",
     "lucide-react": "^0.553.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",

@@ -19,7 +19,6 @@ export default function Recommendations() {
               <div className="bg-white rounded-3xl p-10 py-4 w-full">
                 <div className="flex flex-col md:flex-col gap-6">
                 <Statinfo />
-                <Statinfo />
                 </div>
               </div>
               </div>

@@ -101,6 +101,20 @@ export default function ManualEntry({ onCancel, onSave }) {
             />
           </div>
 
+          {/* Start Date */}
+          <div>
+            <h4 className="font-semibold text-gray-800 mb-2">
+              Start Date
+            </h4>
+            <input
+              type="date"
+              name="startDate"
+              value={form.startDate}
+              onChange={handleChange}
+              className="w-full border rounded-xl px-4 py-3 bg-white outline-none"
+            />
+          </div>
+
           {/* Due Date */}
           <div>
             <h4 className="font-semibold text-gray-800 mb-2">
@@ -114,6 +128,8 @@ export default function ManualEntry({ onCancel, onSave }) {
               className="w-full border rounded-xl px-4 py-3 bg-white outline-none"
             />
           </div>
+
+          
         </div>
       </section>
 
