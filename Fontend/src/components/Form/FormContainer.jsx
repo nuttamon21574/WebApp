@@ -108,71 +108,37 @@ export default function FormContainer() {
 
         {/* Income */}
         <FormRow label="Income">
-          <input
-            type="number"
+          <select
             className="rounded-xl px-4 py-2 bg-white w-full"
             value={form.income}
             onChange={(e) =>
               setForm({ ...form, income: e.target.value })
             }
-          />
+          >
+            <option value="">Select</option>
+            <option value="8000-10000">8,000 – 10,000</option>
+            <option value="10001-15000">10,001 – 15,000</option>
+            <option value="15001-20000">15,001 – 20,000</option>
+            <option value="20001-25000">20,001 – 25,000</option>
+          </select>
         </FormRow>
 
-      {/* Expense Section */}
-      <div className="rounded-2xl p-4 bg-[#F1ECFF]">
-        <h3 className="font-medium text-[#2B1166] mb-4">
-          Expenses
-        </h3>
-
-        {/* Rent */}
-        <FormRow label="- Rent">
-          <input
-            type="number"
-            className="rounded-xl px-4 py-2 bg-white w-full"
-            value={form.rent}
-            onChange={(e) =>
-              setForm({ ...form, rent: e.target.value })
-            }
-          />
-        </FormRow>
-
-        {/* Food */}
-        <FormRow label="- Food">
-          <input
-            type="number"
-            className="rounded-xl px-4 py-2 bg-white w-full"
-            value={form.food}
-            onChange={(e) =>
-              setForm({ ...form, food: e.target.value })
-            }
-          />
-        </FormRow>
-
-        {/* Transport */}
-        <FormRow label="- Transport">
-          <input
-            type="number"
-            className="rounded-xl px-4 py-2 bg-white w-full"
-            value={form.transport}
-            onChange={(e) =>
-              setForm({ ...form, transport: e.target.value })
-            }
-          />
-        </FormRow>
-
-        {/* Other Expenses */}
-        <FormRow label="- Other Expenses">
-          <input
-            type="number"
-            className="rounded-xl px-4 py-2 bg-white w-full"
-            value={form.other}
-            onChange={(e) =>
-              setForm({ ...form, other: e.target.value })
-            }
-          />
-        </FormRow>
-      </div>
-
+      {/* Expense */}
+      <FormRow label="Monthly Expense">
+        <select
+          className="rounded-xl px-4 py-2 bg-white w-full"
+          value={form.expense}
+          onChange={(e) =>
+            setForm({ ...form, expense: e.target.value })
+          }
+        >
+          <option value="">Select</option>
+          <option value="3000-7000">3,000 – 7,000</option>
+          <option value="7001-12000">7,001 – 12,000</option>
+          <option value="12001-18000">12,001 – 18,000</option>
+          <option value="18001-25000">18,001 – 25,000</option>
+        </select>
+      </FormRow>
 
         {/* SPayLater Limit */}
         <FormRow label="SPayLater Limit">
