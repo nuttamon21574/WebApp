@@ -1,11 +1,17 @@
-// ฟอร์มหน้ากรอกข้อมูลส่วนตัว
-import { useNavigate } from "react-router-dom";
-import { useState } from "react";
-import FormRow from "./FormRow";
-import SaveButton from "../Button/SaveButton";
+import { useNavigate } from "react-router-dom"
+import { useState, useEffect } from "react"
+import {
+  doc,
+  getDoc,
+  setDoc,
+} from "firebase/firestore"
+import { auth, db } from "@/firebase"
+
+import FormRow from "./FormRow"
+import SaveButton from "../Button/SaveButton"
 
 export default function FormContainer() {
-  const navigate = useNavigate();
+  const navigate = useNavigate()
 
   const [form, setForm] = useState({
     gender: "",
@@ -15,17 +21,69 @@ export default function FormContainer() {
     expense: "",
     spay: "",
     laz: "",
-  });
+  })
 
-  // เช็คว่ากรอกครบ
-  const isComplete =
-    form.gender !== "" &&
-    form.age !== "" &&
-    form.year !== "" &&
-    form.income !== "" &&
-    form.expense !== "" &&
-    form.spay !== "" &&
-    form.laz !== "";
+  /* ---------------- โหลดข้อมูลเดิม ---------------- */
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const user = auth.currentUser
+      if (!user) return
+
+      try {
+        const ref = doc(db, "users", user.uid)
+        const snap = await getDoc(ref)
+
+        if (snap.exists()) {
+          const data = snap.data()
+          setForm({
+            gender: data.gender || "",
+            age: data.age ?? "",
+            year: data.year || "",
+            income: data.income ?? "",
+            expense: data.expense ?? "",
+            spay: data.spay ?? "",
+            laz: data.laz ?? "",
+          })
+        }
+      } catch (err) {
+        console.error("Load failed:", err)
+      }
+    }
+
+    fetchUserData()
+  }, [])
+
+  /* ---------------- เช็คกรอกครบ ---------------- */
+  const isComplete = Object.values(form).every(v => v !== "")
+
+  /* ---------------- Save / Update ---------------- */
+  const handleSave = async () => {
+    try {
+      const user = auth.currentUser
+      if (!user) {
+        alert("Please login first")
+        return
+      }
+
+      await setDoc(
+        doc(db, "users", user.uid),
+        {
+          ...form,
+          age: Number(form.age),
+          income: Number(form.income),
+          expense: Number(form.expense),
+          spay: Number(form.spay),
+          laz: Number(form.laz)
+        },
+        { merge: true } // ⭐ สำคัญมาก (create + update ได้)
+      )
+
+      navigate("/bnpl")
+    } catch (err) {
+      console.error(err)
+      alert("Failed to save data")
+    }
+  }
 
   return (
     <div>
@@ -76,8 +134,6 @@ export default function FormContainer() {
             <option>Year 2</option>
             <option>Year 3</option>
             <option>Year 4</option>
-            <option>Year 5</option>
-            <option>Year 6</option>
           </select>
         </FormRow>
 
@@ -105,7 +161,7 @@ export default function FormContainer() {
           />
         </FormRow>
 
-        {/* SPayLater Limit */}
+        {/* SPayLater */}
         <FormRow label="SPayLater Limit">
           <input
             type="number"
@@ -117,7 +173,7 @@ export default function FormContainer() {
           />
         </FormRow>
 
-        {/* LazPayLater Limit */}
+        {/* LazPayLater */}
         <FormRow label="LazPayLater Limit">
           <input
             type="number"
@@ -130,17 +186,12 @@ export default function FormContainer() {
         </FormRow>
       </div>
 
-      {/* Save Button */}
       <div className="grid place-items-center h-full mt-10">
         <SaveButton
           isComplete={isComplete}
-          onClick={() =>
-            navigate("/bnpl", {
-              state: form,
-            })
-          }
+          onClick={handleSave}
         />
       </div>
     </div>
-  );
+  )
 }

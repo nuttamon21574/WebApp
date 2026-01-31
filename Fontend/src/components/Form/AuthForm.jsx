@@ -5,7 +5,8 @@ import {
   sendEmailVerification,
   sendPasswordResetEmail,
 } from "firebase/auth"
-import { auth } from "@/firebase"
+import { doc, setDoc } from "firebase/firestore"
+import { auth, db } from "@/firebase"
 import { useNavigate } from "react-router-dom"
 import InputForm from "./InputForm"
 import SubmitButton from "../Button/SubmitButton"
@@ -82,7 +83,16 @@ export default function AuthForm({ type = "login" }) {
         const userCredential =
           await createUserWithEmailAndPassword(auth, email, password)
 
-        await sendEmailVerification(userCredential.user)
+        const user = userCredential.user
+
+        // ✅ ส่ง Email Verification
+        await sendEmailVerification(user)
+
+        // ✅ เก็บ username ลง Firestore
+        await setDoc(doc(db, "users", user.uid), {
+          username: username,
+          email: user.email,
+        })
 
         alert(
           "Verification email has been sent.\n" +
@@ -105,7 +115,7 @@ export default function AuthForm({ type = "login" }) {
       if (!user.emailVerified) {
         const shouldResend = window.confirm(
           "Your account has not been verified yet.\n\n" +
-          "Please verify your email before logging in.\n\n"
+          "Please verify your email before logging in."
         )
 
         if (shouldResend) {
@@ -203,20 +213,17 @@ export default function AuthForm({ type = "login" }) {
         error={errors.password}
       />
 
-{!isRegister && (
-      <p className="text-sm text-left text-gray-600">
-  Forgot your password?
-  <span
-    className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer ml-1"
-      onClick={() => {
-    console.log("CLICKED RESET PASSWORD")
-    handleResetPassword()
-  }}
-  >
-    Click here!
-  </span>
-</p>
-)}
+      {!isRegister && (
+        <p className="text-sm text-left text-gray-600">
+          Forgot your password?
+          <span
+            className="text-blue-600 hover:underline cursor-pointer ml-1"
+            onClick={handleResetPassword}
+          >
+            Click here!
+          </span>
+        </p>
+      )}
 
       {isRegister && (
         <InputForm
