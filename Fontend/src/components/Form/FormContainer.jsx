@@ -108,7 +108,15 @@ export default function FormContainer() {
 
         {/* Income */}
         <FormRow label="Income">
-          <select
+          <input
+            type="number"
+            className="rounded-xl px-4 py-2 bg-white w-full"
+            value={form.income}
+            onChange={(e) =>
+              setForm({ ...form, income: e.target.value })
+            }
+          />
+         {/*} <select
             className="rounded-xl px-4 py-2 bg-white w-full"
             value={form.income}
             onChange={(e) =>
@@ -121,11 +129,20 @@ export default function FormContainer() {
             <option value="15001-20000">15,001 – 20,000</option>
             <option value="20001-25000">20,001 – 25,000</option>
           </select>
+          */}
         </FormRow>
 
       {/* Expense */}
-      <FormRow label="Monthly Expense">
-        <select
+      <FormRow label="Expense">
+        <input
+            type="number"
+            className="rounded-xl px-4 py-2 bg-white w-full"
+            value={form.expense}
+            onChange={(e) =>
+              setForm({ ...form, expense: e.target.value })
+            }
+          />
+        {/* <select
           className="rounded-xl px-4 py-2 bg-white w-full"
           value={form.expense}
           onChange={(e) =>
@@ -137,7 +154,9 @@ export default function FormContainer() {
           <option value="7001-12000">7,001 – 12,000</option>
           <option value="12001-18000">12,001 – 18,000</option>
           <option value="18001-25000">18,001 – 25,000</option>
-        </select>
+        </select> 
+        */}
+
       </FormRow>
 
         {/* SPayLater Limit */}
