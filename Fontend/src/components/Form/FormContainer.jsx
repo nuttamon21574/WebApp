@@ -1,38 +1,21 @@
 // ฟอร์มหน้ากรอกข้อมูลส่วนตัว
 import { useNavigate } from "react-router-dom";
-import { useState, useRef } from "react";
+import { useState } from "react";
 import FormRow from "./FormRow";
 import SaveButton from "../Button/SaveButton";
 
 export default function FormContainer() {
   const navigate = useNavigate();
-  const fileRef = useRef(null);
-
-  const [file, setFile] = useState(null);
 
   const [form, setForm] = useState({
     gender: "",
     age: "",
     year: "",
     income: "",
-
-    // แยกค่าใช้จ่าย
-    rent: "",
-    food: "",
-    transport: "",
-    other: "",
-
+    expense: "",
     spay: "",
     laz: "",
-    creditBureau: null,
   });
-
-  // รวมค่าใช้จ่ายทั้งหมด
-  const totalExpenses =
-    (Number(form.rent) || 0) +
-    (Number(form.food) || 0) +
-    (Number(form.transport) || 0) +
-    (Number(form.other) || 0);
 
   // เช็คว่ากรอกครบ
   const isComplete =
@@ -40,17 +23,9 @@ export default function FormContainer() {
     form.age !== "" &&
     form.year !== "" &&
     form.income !== "" &&
-
-    // expenses
-    form.rent !== "" &&
-    form.food !== "" &&
-    form.transport !== "" &&
-    form.other !== "" &&
-
-    // BNPL
+    form.expense !== "" &&
     form.spay !== "" &&
     form.laz !== "";
-
 
   return (
     <div>
@@ -69,9 +44,9 @@ export default function FormContainer() {
             }
           >
             <option value="">Select</option>
-            <option>Male</option>
-            <option>Female</option>
-            <option>LGBTQ+</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
           </select>
         </FormRow>
 
@@ -116,25 +91,11 @@ export default function FormContainer() {
               setForm({ ...form, income: e.target.value })
             }
           />
-         {/*} <select
-            className="rounded-xl px-4 py-2 bg-white w-full"
-            value={form.income}
-            onChange={(e) =>
-              setForm({ ...form, income: e.target.value })
-            }
-          >
-            <option value="">Select</option>
-            <option value="8000-10000">8,000 – 10,000</option>
-            <option value="10001-15000">10,001 – 15,000</option>
-            <option value="15001-20000">15,001 – 20,000</option>
-            <option value="20001-25000">20,001 – 25,000</option>
-          </select>
-          */}
         </FormRow>
 
-      {/* Expense */}
-      <FormRow label="Expense">
-        <input
+        {/* Expense */}
+        <FormRow label="Expense">
+          <input
             type="number"
             className="rounded-xl px-4 py-2 bg-white w-full"
             value={form.expense}
@@ -142,22 +103,7 @@ export default function FormContainer() {
               setForm({ ...form, expense: e.target.value })
             }
           />
-        {/* <select
-          className="rounded-xl px-4 py-2 bg-white w-full"
-          value={form.expense}
-          onChange={(e) =>
-            setForm({ ...form, expense: e.target.value })
-          }
-        >
-          <option value="">Select</option>
-          <option value="3000-7000">3,000 – 7,000</option>
-          <option value="7001-12000">7,001 – 12,000</option>
-          <option value="12001-18000">12,001 – 18,000</option>
-          <option value="18001-25000">18,001 – 25,000</option>
-        </select> 
-        */}
-
-      </FormRow>
+        </FormRow>
 
         {/* SPayLater Limit */}
         <FormRow label="SPayLater Limit">
@@ -190,10 +136,7 @@ export default function FormContainer() {
           isComplete={isComplete}
           onClick={() =>
             navigate("/bnpl", {
-              state: {
-                ...form,
-                expenses: totalExpenses,
-              },
+              state: form,
             })
           }
         />
