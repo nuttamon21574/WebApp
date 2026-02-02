@@ -15,11 +15,11 @@ export default function BNPLDashboard() {
       if (!user) return;
 
       const spaySnap = await getDoc(
-        doc(db, "manualDebt", user.uid, "accounts", "spay")
+        doc(db, "bnplDebt", user.uid, "accounts", "spay")
       );
 
       const lazSnap = await getDoc(
-        doc(db, "manualDebt", user.uid, "accounts", "lazpay")
+        doc(db, "bnplDebt", user.uid, "accounts", "lazpay")
       );
 
       setData({
