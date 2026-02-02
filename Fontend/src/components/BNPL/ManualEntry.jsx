@@ -70,8 +70,17 @@ export default function ManualEntry({ onCancel, onSave }) {
   const handleSave = async () => {
     if (!isComplete) return;
 
-    const user = auth.currentUser;
-    if (!user) return;
+    const user = await new Promise((resolve) => {
+      const unsub = onAuthStateChanged(auth, (u) => {
+        unsub();
+        resolve(u);
+      });
+    });
+
+    if (!user) {
+      console.error("No user auth");
+      return;
+    }
 
     try {
       const payload = {
@@ -86,12 +95,8 @@ export default function ManualEntry({ onCancel, onSave }) {
 
       await setDoc(doc(db, "bnplDebt", user.uid), payload, { merge: true });
 
-      // ✅ reset จริง
       setForm(emptyForm);
-
-      // ✅ กัน effect โหลดกลับ
       setLoadedOnce(true);
-
       onSave?.(payload);
 
     } catch (err) {
@@ -99,9 +104,6 @@ export default function ManualEntry({ onCancel, onSave }) {
     }
   };
 
-  if (loading) {
-    return <div className="p-10 text-center">Loading...</div>;
-  }
 
   /* ================= UI ================= */
   return (
