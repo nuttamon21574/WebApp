@@ -1,10 +1,40 @@
-import { useState } from "react"
-import { doc, setDoc, serverTimestamp } from "firebase/firestore"
+import { useState, useEffect } from "react"
+import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore"
 import { auth, db } from "@/firebase"
 
 export default function BNPLProviderSelect({ value, onChange }) {
   const options = ["SPayLater", "LazPayLater"]
   const [open, setOpen] = useState(false)
+
+  // ✅ set default provider = SPayLater ถ้า DB ยังไม่มี
+  useEffect(() => {
+    const initDefaultProvider = async () => {
+      const user = auth.currentUser
+      if (!user) return
+
+      const ref = doc(db, "bnplDebt", user.uid)
+      const snap = await getDoc(ref)
+
+      if (!snap.exists() || !snap.data()?.bnplProvider) {
+        await setDoc(
+          ref,
+          {
+            bnplProvider: "SPayLater",
+            bnplProviderUpdatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        )
+
+        onChange("SPayLater")
+        console.log("Initialized provider → SPayLater")
+      } else {
+        // ✅ ถ้ามีค่าแล้ว → sync กลับไป parent
+        onChange(snap.data().bnplProvider)
+      }
+    }
+
+    initDefaultProvider()
+  }, [])
 
   const handleSelect = async (opt) => {
     onChange(opt)
@@ -20,7 +50,7 @@ export default function BNPLProviderSelect({ value, onChange }) {
           bnplProvider: opt,
           bnplProviderUpdatedAt: serverTimestamp(),
         },
-        { merge: true }   // 🔥 กัน document หาย
+        { merge: true }
       )
 
       console.log("Saved provider:", opt)
@@ -40,7 +70,7 @@ export default function BNPLProviderSelect({ value, onChange }) {
         className="w-full !bg-[#CDBDFF] text-black px-4 py-2 rounded-xl
                    flex items-center justify-between font-medium"
       >
-        {value || "Select"}
+        {value || "SPayLater"}
         <span className={`transition ${open ? "rotate-180" : ""}`}>▾</span>
       </button>
 

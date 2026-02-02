@@ -5,9 +5,11 @@ import {
   sendEmailVerification,
   sendPasswordResetEmail,
 } from "firebase/auth"
-import { doc, setDoc } from "firebase/firestore"
+
+import { doc, setDoc, getDoc } from "firebase/firestore"
 import { auth, db } from "@/firebase"
 import { useNavigate } from "react-router-dom"
+
 import InputForm from "./InputForm"
 import SubmitButton from "../Button/SubmitButton"
 
@@ -57,7 +59,6 @@ export default function AuthForm({ type = "login" }) {
 
   const validateLogin = () => {
     const newErrors = {}
-
     if (!email) newErrors.email = "Email is required"
     if (!password) newErrors.password = "Password is required"
 
@@ -85,18 +86,18 @@ export default function AuthForm({ type = "login" }) {
 
         const user = userCredential.user
 
-        // ✅ ส่ง Email Verification
+        // ✅ verify email
         await sendEmailVerification(user)
 
-        // ✅ เก็บ username ลง Firestore
+        // ✅ save profile
         await setDoc(doc(db, "users", user.uid), {
           username: username,
           email: user.email,
+          createdAt: new Date(),
         })
 
         alert(
-          "Verification email has been sent.\n" +
-          "Please verify your email before logging in."
+          "Verification email has been sent.\nPlease verify before login."
         )
 
         navigate("/")
@@ -104,32 +105,35 @@ export default function AuthForm({ type = "login" }) {
       }
 
       /* ---------- LOGIN ---------- */
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      )
+      const userCredential =
+        await signInWithEmailAndPassword(auth, email, password)
 
       const user = userCredential.user
 
+      // ✅ email verify check
       if (!user.emailVerified) {
         const shouldResend = window.confirm(
-          "Your account has not been verified yet.\n\n" +
-          "Please verify your email before logging in."
+          "Your account is not verified.\nResend verification email?"
         )
 
         if (shouldResend) {
           await sendEmailVerification(user)
-          alert(
-            "Verification email has been resent.\n" +
-            "Please check your inbox or spam folder."
-          )
+          alert("Verification email resent.")
         }
 
         return
       }
 
-      navigate("/my-account")
+      // ✅ 🔍 CHECK USER PROFILE IN FIRESTORE
+      const snap = await getDoc(doc(db, "users", user.uid))
+
+      if (snap.exists()) {
+        // มีข้อมูลแล้ว
+        navigate("/dashboard")
+      } else {
+        // ยังไม่มีข้อมูล
+        navigate("/my-account")
+      }
 
     } catch (err) {
       const newErrors = {}
@@ -138,13 +142,13 @@ export default function AuthForm({ type = "login" }) {
         if (err.code === "auth/email-already-in-use") {
           newErrors.email = "Email already in use"
         } else if (err.code === "auth/weak-password") {
-          newErrors.password = "Password is too weak"
+          newErrors.password = "Password too weak"
         } else {
           newErrors.email = "Registration failed"
         }
       } else {
         if (err.code === "auth/invalid-credential") {
-          newErrors.email = "Email or password is incorrect"
+          newErrors.email = "Email or password incorrect"
         } else {
           newErrors.email = "Login failed"
         }
@@ -165,20 +169,19 @@ export default function AuthForm({ type = "login" }) {
 
     try {
       await sendPasswordResetEmail(auth, email)
-      alert("Password reset email sent. Please check your inbox or spam.")
+      alert("Password reset email sent.")
     } catch (err) {
       if (err.code === "auth/user-not-found") {
         setErrors({ email: "Email not found" })
       } else if (err.code === "auth/invalid-email") {
         setErrors({ email: "Invalid email format" })
-      } else if (err.code === "auth/too-many-requests") {
-        setErrors({ email: "Too many requests. Try again later." })
       } else {
-        setErrors({ email: "Failed to send reset email" })
+        setErrors({ email: "Reset failed" })
       }
     }
   }
 
+  /* -------------------- UI -------------------- */
   return (
     <form
       className="flex flex-col gap-3 mt-6"
@@ -214,13 +217,13 @@ export default function AuthForm({ type = "login" }) {
       />
 
       {!isRegister && (
-        <p className="text-sm text-left text-gray-600">
-          Forgot your password?
+        <p className="text-sm text-gray-600">
+          Forgot password?
           <span
-            className="text-blue-600 hover:underline cursor-pointer ml-1"
+            className="text-blue-600 ml-1 cursor-pointer hover:underline"
             onClick={handleResetPassword}
           >
-            Click here!
+            Click here
           </span>
         </p>
       )}
