@@ -1,4 +1,4 @@
-import Sidebar from "../components/Sidebar/Sidebar";
+import Sidebar from "../components/Sidebar/Sidebar.jsx";
 import Cardclass from "../components/Card/Cardclass.jsx";
 import MonthPicker from "../components/Button/MonthPicker.jsx";
 import Statinfo from "../components/Card/Statinfo.jsx";

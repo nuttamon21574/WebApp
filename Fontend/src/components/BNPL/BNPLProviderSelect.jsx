@@ -15,7 +15,7 @@ export default function BNPLProviderSelect({ value, onChange }) {
       if (!user) return
 
       await setDoc(
-        doc(db, "manualDebt", user.uid),
+        doc(db, "bnplDebt", user.uid),
         {
           bnplProvider: opt,
           bnplProviderUpdatedAt: serverTimestamp(),

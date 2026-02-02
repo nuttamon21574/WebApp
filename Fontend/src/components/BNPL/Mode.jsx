@@ -11,7 +11,7 @@ export default function ModeSelector({ mode, provider, onChange }) {
       if (!user) return
 
       await setDoc(
-        doc(db, "manualDebt", user.uid),
+        doc(db, "bnplDebt", user.uid),
         {
           entryMode: selectedMode
         },
