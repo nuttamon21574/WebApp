@@ -36,7 +36,7 @@ export default function ManualEntry({ onCancel, onSave }) {
       }
 
       try {
-        const snap = await getDoc(doc(db, "manualDebt", user.uid));
+        const snap = await getDoc(doc(db, "bnplDebt", user.uid));
         if (snap.exists()) {
           setForm({ ...emptyForm, ...snap.data() });
         }
