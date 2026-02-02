@@ -4,13 +4,16 @@ import BNPLDetailRow from "./BNPLDetailRow";
 
 import { auth, db } from "@/firebase";
 import { doc, getDoc } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 
 export default function BNPLDashboard({
   onShowAdd,
   activeTab,
   onChangeTab,
 }) {
+
   const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   const showStatus = activeTab === "Total BNPL";
 
@@ -20,30 +23,58 @@ export default function BNPLDashboard({
     return () => onShowAdd?.(false);
   }, [onShowAdd]);
 
-  /* ================= load manualDebt ================= */
+  /* ================= load bnplDebt ================= */
   useEffect(() => {
-    const load = async () => {
-      const user = auth.currentUser;
-      if (!user) return;
+
+    const unsub = onAuthStateChanged(auth, async (user) => {
+
+      if (!user) {
+        console.log("No auth user");
+        setData(null);
+        setLoading(false);
+        return;
+      }
+
+      console.log("Dashboard UID:", user.uid);
 
       try {
-        const snap = await getDoc(doc(db, "bnplDebt", user.uid));
+        const ref = doc(db, "bnplDebt", user.uid);
+        const snap = await getDoc(ref);
+
         if (snap.exists()) {
+          console.log("Dashboard data:", snap.data());
           setData(snap.data());
         } else {
+          console.log("No bnplDebt document found");
           setData(null);
         }
+
       } catch (err) {
         console.error("Dashboard load error:", err);
+        setData(null);
       }
-    };
 
-    load();
+      setLoading(false);
+    });
+
+    return () => unsub();
+
   }, []);
+
+  /* ================= loading ================= */
+
+  if (loading) {
+    return (
+      <div className="p-10 text-center text-gray-500">
+        Loading dashboard...
+      </div>
+    );
+  }
 
   const d = data || {};
 
   /* ================= UI ================= */
+
   return (
     <div className="bg-white rounded-3xl shadow-xl p-10 w-full h-full flex flex-col gap-8">
 
@@ -77,16 +108,19 @@ export default function BNPLDashboard({
               <p className="text-sm font-medium">Non-Default</p>
             </div>
           )}
+
         </div>
       </div>
 
       {/* ===== Details ===== */}
       <div className="grid md:grid-cols-2 gap-y-6 gap-x-16 text-sm">
+
         <BNPLDetailRow label="Total Debt" value={d.totalDebt ?? "-"} />
         <BNPLDetailRow label="Interest" value={d.interest ?? "-"} />
         <BNPLDetailRow label="Monthly Payment" value={d.monthlyPayment ?? "-"} />
         <BNPLDetailRow label="Installments" value={d.installments ?? "-"} />
         <BNPLDetailRow label="Due Date" value={d.dueDate ?? "-"} />
+
       </div>
 
     </div>
