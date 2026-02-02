@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 import Sidebar from "../components/Sidebar/Sidebar";
 import BNPLName from "../components/Header/BNPLName";
@@ -11,10 +11,15 @@ import CheckBNPL from "../components/BNPL/CheckBNPL";
 import BNPLProviderSelect from "../components/BNPL/BNPLProviderSelect";
 
 export default function BNPL() {
-  const navigate = useNavigate(); // ✅ ใช้สำหรับ redirect
+  const navigate = useNavigate();
+  const location = useLocation(); // ✅ รับ state จาก Dashboard
 
-  const [mode, setMode] = useState("empty");
-  const [provider, setProvider] = useState("SPayLater");
+  // ✅ รับค่าจาก navigate state
+  const startMode = location.state?.startMode || "empty";
+  const startProvider = location.state?.provider || "SPayLater";
+
+  const [mode, setMode] = useState(startMode);
+  const [provider, setProvider] = useState(startProvider);
   const [showCheckBNPL, setShowCheckBNPL] = useState(false);
 
   const [form, setForm] = useState({
@@ -36,13 +41,13 @@ export default function BNPL() {
     });
   };
 
-  // LazPayLater → manual only
+  // ✅ LazPayLater → manual only
   useEffect(() => {
-    if (provider === "LazPayLater" && mode !== "dashboard") {
+    if (provider === "LazPayLater" && mode === "pdf") {
       resetBNPLFlow();
       setMode("manual");
     }
-  }, [provider]);
+  }, [provider, mode]);
 
   return (
     <div className="min-h-screen w-screen bg-purple-950 px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
@@ -54,10 +59,13 @@ export default function BNPL() {
         <div className="flex flex-col mt-10 lg:mt-0">
           <BNPLName />
 
-          {/* Provider Select (เฉพาะ manual / pdf) */}
+          {/* Provider Select */}
           {(mode === "manual" || mode === "pdf") && (
             <div className="flex flex-col mb-4 gap-4">
-              <BNPLProviderSelect value={provider} onChange={setProvider} />
+              <BNPLProviderSelect
+                value={provider}
+                onChange={setProvider}
+              />
             </div>
           )}
 
@@ -75,17 +83,21 @@ export default function BNPL() {
               />
             )}
 
-            {/* Empty State */}
+            {/* Empty */}
             {mode === "empty" && (
               <EmptyBNPL
                 onAdd={() => {
                   resetBNPLFlow();
-                  setMode(provider === "LazPayLater" ? "manual" : "pdf");
+                  setMode(
+                    provider === "LazPayLater"
+                      ? "manual"
+                      : "pdf"
+                  );
                 }}
               />
             )}
 
-            {/* Manual Entry */}
+            {/* Manual */}
             {mode === "manual" && (
               <ManualEntry
                 onCancel={() => {
@@ -101,13 +113,12 @@ export default function BNPL() {
                     dueDate: data.dueDate,
                   });
 
-                  // ✅ SAVE เสร็จ → ไป Dashboard
                   navigate("/dashboard");
                 }}
               />
             )}
 
-            {/* PDF Upload */}
+            {/* PDF */}
             {mode === "pdf" && (
               <div className="flex flex-col gap-10">
                 <UploadPDF
@@ -128,7 +139,6 @@ export default function BNPL() {
                       }))
                     }
                     onSave={() => {
-                      // ✅ Confirm PDF → ไป Dashboard
                       navigate("/dashboard");
                     }}
                   />

@@ -1,11 +1,38 @@
-import { useState } from "react";
+import { useState } from "react"
+import { doc, setDoc, serverTimestamp } from "firebase/firestore"
+import { auth, db } from "@/firebase"
 
 export default function BNPLProviderSelect({ value, onChange }) {
-  const options = ["SPayLater", "LazPayLater"];
-  const [open, setOpen] = useState(false);
+  const options = ["SPayLater", "LazPayLater"]
+  const [open, setOpen] = useState(false)
+
+  const handleSelect = async (opt) => {
+    onChange(opt)
+    setOpen(false)
+
+    try {
+      const user = auth.currentUser
+      if (!user) return
+
+      await setDoc(
+        doc(db, "manualDebt", user.uid),
+        {
+          bnplProvider: opt,
+          bnplProviderUpdatedAt: serverTimestamp(),
+        },
+        { merge: true }   // 🔥 กัน document หาย
+      )
+
+      console.log("Saved provider:", opt)
+
+    } catch (err) {
+      console.error("Save provider failed:", err)
+    }
+  }
 
   return (
     <div className="relative w-56">
+
       {/* Selected */}
       <button
         type="button"
@@ -13,7 +40,7 @@ export default function BNPLProviderSelect({ value, onChange }) {
         className="w-full !bg-[#CDBDFF] text-black px-4 py-2 rounded-xl
                    flex items-center justify-between font-medium"
       >
-        {value}
+        {value || "Select"}
         <span className={`transition ${open ? "rotate-180" : ""}`}>▾</span>
       </button>
 
@@ -21,15 +48,12 @@ export default function BNPLProviderSelect({ value, onChange }) {
       {open && (
         <div className="absolute mt-2 w-full bg-[#CDBDFF] rounded-xl overflow-hidden shadow-lg z-10">
           {options.map((opt) => {
-            const isActive = value === opt;
+            const isActive = value === opt
 
             return (
               <div
                 key={opt}
-                onClick={() => {
-                  onChange(opt);        // ⭐ update state จาก parent เท่านั้น
-                  setOpen(false);
-                }}
+                onClick={() => handleSelect(opt)}
                 className={`
                   px-4 py-2 text-center cursor-pointer transition
                   ${isActive ? "bg-white font-semibold" : "hover:bg-white"}
@@ -37,10 +61,10 @@ export default function BNPLProviderSelect({ value, onChange }) {
               >
                 {opt}
               </div>
-            );
+            )
           })}
         </div>
       )}
     </div>
-  );
+  )
 }

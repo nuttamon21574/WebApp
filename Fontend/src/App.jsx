@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import MyAccount from "./pages/MyAccount";
 import BNPL from "./pages/BNPL";
 import Dashboard from "./pages/Dashboard";
-import Recommendations from "./pages/Recommendatios";
+import Recommendations from "./pages/Recommendations";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 

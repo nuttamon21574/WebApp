@@ -1,41 +1,70 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import BNPLTabs from "./BNPLTabs";
 import BNPLDetailRow from "./BNPLDetailRow";
 
+import { auth, db } from "@/firebase";
+import { doc, getDoc } from "firebase/firestore";
 
 export default function BNPLDashboard({
-  form = {},              // ✅ กัน undefined
   onShowAdd,
   activeTab,
   onChangeTab,
 }) {
-  const showStatus = true;
+  const [data, setData] = useState(null);
 
-  // ให้ปุ่ม + แสดงทันทีเมื่อเข้า Dashboard
+  const showStatus = activeTab === "Total BNPL";
+
+  /* ================= show add button ================= */
   useEffect(() => {
     onShowAdd?.(true);
     return () => onShowAdd?.(false);
   }, [onShowAdd]);
 
+  /* ================= load manualDebt ================= */
+  useEffect(() => {
+    const load = async () => {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      try {
+        const snap = await getDoc(doc(db, "bnplDebt", user.uid));
+        if (snap.exists()) {
+          setData(snap.data());
+        } else {
+          setData(null);
+        }
+      } catch (err) {
+        console.error("Dashboard load error:", err);
+      }
+    };
+
+    load();
+  }, []);
+
+  const d = data || {};
+
+  /* ================= UI ================= */
   return (
     <div className="bg-white rounded-3xl shadow-xl p-10 w-full h-full flex flex-col gap-8">
-      {/* Tabs */}
+
       <BNPLTabs activeTab={activeTab} onChange={onChangeTab} />
 
-      {/* Summary */}
+      {/* ===== Summary ===== */}
       <div className="flex justify-center w-full">
         <div
           className={`grid gap-8 w-full max-w-4xl ${
             showStatus ? "md:grid-cols-2" : "grid-cols-1"
           }`}
         >
+
           {/* Outstanding Balance */}
-          <div className="bg-white rounded-2xl shadow-md p-8 text-center">
+          <div className="bg-white rounded-2xl shadow-md p-8 text-center h-[170px] flex flex-col justify-center">
             <p className="text-sm text-gray-500 mb-3">
               Outstanding Balance
             </p>
+
             <p className="text-3xl font-semibold">
-              {form?.total ?? "2500"}
+              {d.outstandingBalance ?? "-"}
             </p>
           </div>
 
@@ -51,13 +80,15 @@ export default function BNPLDashboard({
         </div>
       </div>
 
-      {/* Details */}
+      {/* ===== Details ===== */}
       <div className="grid md:grid-cols-2 gap-y-6 gap-x-16 text-sm">
-        <BNPLDetailRow label="Total Due Amount" value={form?.total ?? "-"} />
-        <BNPLDetailRow label="Interest" value={form?.interest ?? "-"} />
-        <BNPLDetailRow label="Monthly Payment" value={form?.monthlyPayment ?? "-"} />
-        <BNPLDetailRow label="Payment Due Date" value={form?.dueDate ?? "-"} />
+        <BNPLDetailRow label="Total Debt" value={d.totalDebt ?? "-"} />
+        <BNPLDetailRow label="Interest" value={d.interest ?? "-"} />
+        <BNPLDetailRow label="Monthly Payment" value={d.monthlyPayment ?? "-"} />
+        <BNPLDetailRow label="Installments" value={d.installments ?? "-"} />
+        <BNPLDetailRow label="Due Date" value={d.dueDate ?? "-"} />
       </div>
+
     </div>
   );
 }
