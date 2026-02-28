@@ -19,8 +19,8 @@ export default function FormContainer() {
     year: "",
     income: "",
     expense: "",
-    spay: "",
-    laz: "",
+    spaylater_limit: "",
+    lazpaylater_limit: "",
   })
 
   /* ---------------- โหลดข้อมูลเดิม ---------------- */
@@ -35,14 +35,15 @@ export default function FormContainer() {
 
         if (snap.exists()) {
           const data = snap.data()
+
           setForm({
             gender: data.gender || "",
             age: data.age ?? "",
             year: data.year || "",
             income: data.income ?? "",
             expense: data.expense ?? "",
-            spay: data.spay ?? "",
-            laz: data.laz ?? "",
+            spaylater_limit: data.spaylater_limit ?? "",
+            lazpaylater_limit: data.lazpaylater_limit ?? "",
           })
         }
       } catch (err) {
@@ -54,31 +55,59 @@ export default function FormContainer() {
   }, [])
 
   /* ---------------- เช็คกรอกครบ ---------------- */
-  const isComplete = Object.values(form).every(v => v !== "")
+  const isComplete =
+    form.gender &&
+    form.age !== "" &&
+    form.year &&
+    form.income !== "" &&
+    form.expense !== "" &&
+    form.spaylater_limit !== "" &&
+    form.lazpaylater_limit !== ""
 
   /* ---------------- Save / Update ---------------- */
   const handleSave = async () => {
+    const user = auth.currentUser
+    if (!user) {
+      alert("Please login first")
+      return
+    }
+
+    if (!isComplete) {
+      alert("Please fill all fields")
+      return
+    }
+
     try {
-      const user = auth.currentUser
-      if (!user) {
-        alert("Please login first")
+      const income = Number(form.income)
+      const expense = Number(form.expense)
+
+      if (isNaN(income) || isNaN(expense)) {
+        alert("Income / Expense must be numbers")
         return
       }
+
+      const balance = income - expense
 
       await setDoc(
         doc(db, "users", user.uid),
         {
-          ...form,
+          gender: form.gender,
           age: Number(form.age),
+          year: form.year,
+
           income: Number(form.income),
           expense: Number(form.expense),
-          spay: Number(form.spay),
-          laz: Number(form.laz)
+          spaylater_limit: Number(form.spaylater_limit),
+          lazpaylater_limit: Number(form.lazpaylater_limit),
+
+          balance: Number(form.income) - Number(form.expense),
+
+          updatedAt: new Date(),
         },
-        { merge: true } // ⭐ สำคัญมาก (create + update ได้)
+        { merge: true }
       )
 
-      navigate("/bnpl")
+      navigate("/BNPL")
     } catch (err) {
       console.error(err)
       alert("Failed to save data")
@@ -92,7 +121,6 @@ export default function FormContainer() {
       </h2>
 
       <div className="space-y-4">
-        {/* Gender */}
         <FormRow label="Gender">
           <select
             className="rounded-xl px-4 py-2 bg-white w-full"
@@ -108,7 +136,6 @@ export default function FormContainer() {
           </select>
         </FormRow>
 
-        {/* Age */}
         <FormRow label="Age">
           <input
             type="number"
@@ -120,7 +147,6 @@ export default function FormContainer() {
           />
         </FormRow>
 
-        {/* College Year */}
         <FormRow label="College Year">
           <select
             className="rounded-xl px-4 py-2 bg-white w-full"
@@ -134,10 +160,11 @@ export default function FormContainer() {
             <option>Year 2</option>
             <option>Year 3</option>
             <option>Year 4</option>
+            <option>Year 5</option>
+            <option>Year 6</option>
           </select>
         </FormRow>
 
-        {/* Income */}
         <FormRow label="Income">
           <input
             type="number"
@@ -149,7 +176,6 @@ export default function FormContainer() {
           />
         </FormRow>
 
-        {/* Expense */}
         <FormRow label="Expense">
           <input
             type="number"
@@ -161,26 +187,24 @@ export default function FormContainer() {
           />
         </FormRow>
 
-        {/* SPayLater */}
         <FormRow label="SPayLater Limit">
           <input
             type="number"
             className="rounded-xl px-4 py-2 bg-white w-full"
-            value={form.spay}
+            value={form.spaylater_limit}
             onChange={(e) =>
-              setForm({ ...form, spay: e.target.value })
+              setForm({ ...form, spaylater_limit: e.target.value })
             }
           />
         </FormRow>
 
-        {/* LazPayLater */}
         <FormRow label="LazPayLater Limit">
           <input
             type="number"
             className="rounded-xl px-4 py-2 bg-white w-full"
-            value={form.laz}
+            value={form.lazpaylater_limit}
             onChange={(e) =>
-              setForm({ ...form, laz: e.target.value })
+              setForm({ ...form, lazpaylater_limit: e.target.value })
             }
           />
         </FormRow>

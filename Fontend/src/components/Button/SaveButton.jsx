@@ -1,7 +1,7 @@
 export default function SaveButton({ isComplete = true, onClick }) {
   return (
     <button
-      type="submit"
+      type="button"
       onClick={onClick}
       style={{
         backgroundColor: isComplete ? '#DCCEFF' : '#E9E1FF',

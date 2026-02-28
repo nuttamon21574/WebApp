@@ -1,169 +1,341 @@
-import { useState, useEffect } from "react";
-import CancelButton from "../Button/CancelButton";
+import { useState } from "react";
+import { auth } from "@/firebase";
+
 import SaveButton from "../Button/SaveButton";
+import AddManual from "../Button/AddManual";
 
-import { auth, db } from "@/firebase";
-import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import { parse, format } from "date-fns";
 
-export default function ManualEntry({ onCancel, onSave }) {
+import { useNavigate } from "react-router-dom";
 
-  const emptyForm = {
-    totalDebt: "",
-    outstandingBalance: "",
-    monthlyPayment: "",
-    installments: "",
-    interest: "",
-    startDate: "",
+/* =======================================================
+   MAIN COMPONENT
+======================================================= */
+
+export default function ManualEntry({ onSave, provider }) {
+  const navigate = useNavigate();
+
+  /* -------------------- Initial State -------------------- */
+
+  const emptyItem = {
+    productName: "",
+    purchaseDate: "",
     dueDate: "",
+    totalDebt: "",
+    annualInterestRate: "",
+    totalInstallments: "",
+    monthlyInstallment: "",
+    outstandingDebt: "",
   };
 
-  const [form, setForm] = useState(emptyForm);
-  const [loading, setLoading] = useState(true);
-  const [loadedOnce, setLoadedOnce] = useState(false); // ✅ กันโหลดซ้ำ
+  const [items, setItems] = useState([emptyItem]);
 
-  /* ================= LOAD DATA ================= */
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        setLoading(false);
-        return;
-      }
+  /* -------------------- Validation -------------------- */
 
-      if (loadedOnce) {
-        setLoading(false);
-        return;
-      }
+  const isItemComplete = (item) =>
+    item.productName.trim() !== "" &&
+    item.purchaseDate &&
+    item.dueDate && 
+    item.totalDebt !== "" &&
+    item.annualInterestRate !== "" &&
+    item.totalInstallments !== "" &&
+    item.monthlyInstallment !== "" &&
+    item.outstandingDebt !== "" &&
+    parseInt(item.totalInstallments) > 0;
 
-      try {
-        const snap = await getDoc(doc(db, "bnplDebt", user.uid));
-        if (snap.exists()) {
-          setForm({ ...emptyForm, ...snap.data() });
-        }
-      } catch (err) {
-        console.error("Load error:", err);
-      }
+  const lastItemComplete = isItemComplete(items[items.length - 1]);
+  const isComplete = items.every(isItemComplete);
 
-      setLoadedOnce(true);
-      setLoading(false);
-    });
+  /* -------------------- Handlers -------------------- */
 
-    return () => unsub();
-  }, [loadedOnce]);
-
-  /* ================= INPUT ================= */
-  const handleChange = (e) => {
+  const handleChange = (index, e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+
+    setItems((prev) => {
+      const updated = [...prev];
+      updated[index][name] = value;
+      return updated;
+    });
   };
 
-  /* ================= VALIDATE ================= */
-  const isComplete =
-    form.totalDebt &&
-    form.outstandingBalance &&
-    form.monthlyPayment &&
-    form.installments &&
-    form.interest &&
-    form.dueDate;
-
-  /* ================= SAVE ================= */
-  const handleSave = async () => {
-    if (!isComplete) return;
-
-    const user = await new Promise((resolve) => {
-      const unsub = onAuthStateChanged(auth, (u) => {
-        unsub();
-        resolve(u);
-      });
-    });
-
-    if (!user) {
-      console.error("No user auth");
+  const addItem = () => {
+    if (!lastItemComplete) {
+      alert("Please complete the current product before adding a new one.");
       return;
     }
 
-    try {
-      const payload = {
-        ...form,
-        totalDebt: Number(form.totalDebt),
-        outstandingBalance: Number(form.outstandingBalance),
-        monthlyPayment: Number(form.monthlyPayment),
-        installments: Number(form.installments),
-        interest: Number(form.interest),
-        updatedAt: serverTimestamp(),
-      };
-
-      await setDoc(doc(db, "bnplDebt", user.uid), payload, { merge: true });
-
-      setForm(emptyForm);
-      setLoadedOnce(true);
-      onSave?.(payload);
-
-    } catch (err) {
-      console.error("Save error:", err);
-    }
+    setItems((prev) => [...prev, { ...emptyItem }]);
   };
 
+  const removeItem = (index) => {
+    const updated = items.filter((_, i) => i !== index);
+    setItems(updated.length ? updated : [emptyItem]);
+  };
 
-  /* ================= UI ================= */
+  const handleSave = async () => {
+  try {
+    const user = auth.currentUser;
+
+    if (!user) {
+      alert("Please login first");
+      return;
+    }
+
+    const token = await user.getIdToken();
+    const uid = user.uid; // ✅ เพิ่มบรรทัดนี้
+
+    // 1️⃣ เรียก calculate ก่อน
+    const response = await fetch(
+      "http://localhost:5000/api/calculate/calculate-and-save",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          provider,
+          items,
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Save failed");
+    }
+
+    // 2️⃣ เรียก persona ต่อทันที
+    const personaResponse = await fetch(
+      `http://localhost:5000/api/persona/${uid}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    const personaData = await personaResponse.json();
+
+    if (!personaResponse.ok) {
+      throw new Error(personaData.error || "Persona failed");
+    }
+
+    console.log("🔥 Persona:", personaData.persona);
+
+    alert("Saved & Persona updated successfully!");
+    navigate("/dashboard");
+
+  } catch (err) {
+    console.error("SAVE ERROR:", err);
+    alert(err.message);
+  }
+};
+
+  /* -------------------- UI -------------------- */
+
   return (
     <div className="space-y-10">
-      <section>
-        <h3 className="font-semibold mb-6 text-lg">
-          Debt Details
-        </h3>
+      {items.map((item, index) => (
+        <div
+          key={index}
+          className="border rounded-2xl p-8 bg-gray-50"
+        >
+          {/* Header */}
+          <div className="flex justify-between mb-6">
+            <h3 className="font-semibold text-lg">
+              Product {index + 1}
+            </h3>
 
-        <div className="grid grid-cols-2 gap-6 text-sm">
+            {items.length > 1 && (
+              <button
+                onClick={() => removeItem(index)}
+                className="text-red-500 text-sm"
+              >
+                Remove
+              </button>
+            )}
+          </div>
 
-          <Field label="Total Debt (Baht)" name="totalDebt" value={form.totalDebt} onChange={handleChange} full />
-          <Field label="Outstanding Balance (Baht)" name="outstandingBalance" value={form.outstandingBalance} onChange={handleChange} full />
+          {/* Form Grid */}
+          <div className="grid grid-cols-2 gap-6 text-sm">
+            <TextField
+              label="Product Name"
+              name="productName"
+              value={item.productName}
+              onChange={(e) => handleChange(index, e)}
+            />
 
-          <Field label="Monthly Payment (Baht)" name="monthlyPayment" value={form.monthlyPayment} onChange={handleChange} />
-          <Field label="Number of Installments" name="installments" value={form.installments} onChange={handleChange} />
+            <DateField
+              label="Purchase Date"
+              name="purchaseDate"
+              value={item.purchaseDate}
+              onChange={(e) => handleChange(index, e)}
+            />
 
-          <Field label="Interest (Baht)" name="interest" value={form.interest} onChange={handleChange} />
-          <DateField label="Start Date" name="startDate" value={form.startDate} onChange={handleChange} />
-          <DateField label="Payment Due Date" name="dueDate" value={form.dueDate} onChange={handleChange} />
+            {/* ✅ NEW FIELD */}
+            <DateField
+              label="Due Date"
+              name="dueDate"
+              value={item.dueDate}
+              onChange={(e) => handleChange(index, e)}
+            />
 
+            <NumberField
+              label="Total Debt"
+              name="totalDebt"
+              value={item.totalDebt}
+              onChange={(e) => handleChange(index, e)}
+              step="0.01"
+            />
+
+            <NumberField
+              label="Annual Interest Rate (%)"
+              name="annualInterestRate"
+              value={item.annualInterestRate}
+              onChange={(e) => handleChange(index, e)}
+              step="0.01"
+            />
+
+            <NumberField
+              label="Total Installments"
+              name="totalInstallments"
+              value={item.totalInstallments}
+              onChange={(e) => handleChange(index, e)}
+              step="1"
+              min="1"
+            />
+
+            <NumberField
+              label="Monthly Installment"
+              name="monthlyInstallment"
+              value={item.monthlyInstallment}
+              onChange={(e) => handleChange(index, e)}
+              step="0.01"
+              min="0"
+            />
+
+            <NumberField
+              label="Outstanding Debt"
+              name="outstandingDebt"
+              value={item.outstandingDebt}
+              onChange={(e) => handleChange(index, e)}
+              step="0.01"
+              min="0"
+            />
+          </div>
         </div>
-      </section>
+      ))}
 
+      {/* Add Button */}
+      <div className="flex justify-end">
+        <AddManual
+          onClick={addItem}
+          text="Add Product"
+          disabled={!lastItemComplete}
+        />
+      </div>
+
+      {/* Save Button */}
       <div className="flex justify-center gap-8">
-        <CancelButton onCancel={onCancel} />
-        <SaveButton isComplete={isComplete} onClick={handleSave} />
+        <SaveButton
+          isComplete={isComplete}
+          onClick={handleSave}
+        />
       </div>
     </div>
   );
 }
 
-/* ================= INPUT COMPONENT ================= */
+/* =======================================================
+   FIELD COMPONENTS
+======================================================= */
 
-function Field({ label, name, value, onChange, full }) {
+function TextField({ label, name, value, onChange }) {
   return (
-    <div className={full ? "col-span-2" : ""}>
-      <h4 className="font-medium text-gray-700 mb-2">{label}</h4>
+    <div>
+      <h4 className="mb-2 font-medium text-gray-700">
+        {label}
+      </h4>
       <input
+        type="text"
         name={name}
         value={value}
         onChange={onChange}
-        className="w-full border border-gray-300 rounded-xl px-4 py-3 bg-white
-                   focus:outline-none focus:ring-2 focus:ring-purple-300"
+        className="w-full border rounded-xl px-4 py-3"
+      />
+    </div>
+  );
+}
+
+function NumberField({
+  label,
+  name,
+  value,
+  onChange,
+  step = "1",
+  min = "0",
+}) {
+  return (
+    <div>
+      <h4 className="mb-2 font-medium text-gray-700">
+        {label}
+      </h4>
+      <input
+        type="number"
+        name={name}
+        value={value}
+        onChange={onChange}
+        step={step}
+        min={min}
+        className="w-full border rounded-xl px-4 py-3"
       />
     </div>
   );
 }
 
 function DateField({ label, name, value, onChange }) {
+  const selectedDate = value
+    ? parse(value, "dd/MM/yyyy", new Date())
+    : null;
+
+  const handleChangeDate = (date) => {
+    if (!date) {
+      onChange({
+        target: { name, value: "" },
+      });
+      return;
+    }
+
+    const formatted = format(date, "dd/MM/yyyy");
+
+    onChange({
+      target: { name, value: formatted },
+    });
+  };
+
   return (
     <div>
-      <h4 className="font-medium text-gray-700 mb-2">{label}</h4>
-      <input
-        type="date"
-        name={name}
-        value={value}
-        onChange={onChange}
-        className="w-full border border-gray-300 rounded-xl px-4 py-3 bg-white
-                   focus:outline-none focus:ring-2 focus:ring-purple-300"
+      <h4 className="mb-2 font-medium text-gray-700">
+        {label}
+      </h4>
+
+      <DatePicker
+        selected={selectedDate}
+        onChange={handleChangeDate}
+        dateFormat="dd/MM/yyyy"
+        placeholderText="dd/mm/yyyy"
+        wrapperClassName="w-full"
+        className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400"
+        showMonthDropdown
+        showYearDropdown
+        dropdownMode="select"
+        yearDropdownItemNumber={20}
+        scrollableYearDropdown
+        isClearable
       />
     </div>
   );

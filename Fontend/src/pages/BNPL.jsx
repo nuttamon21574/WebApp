@@ -6,7 +6,7 @@ import BNPLName from "../components/Header/BNPLName";
 import EmptyBNPL from "../components/BNPL/EmptyBNPL";
 import UploadPDF from "../components/BNPL/UploadPDF";
 import ManualEntry from "../components/BNPL/ManualEntry";
-import ModeSelector from "../components/BNPL/Mode";
+import ModeSelector from "../components/BNPL/ModeSelector";
 import CheckBNPL from "../components/BNPL/CheckBNPL";
 import BNPLProviderSelect from "../components/BNPL/BNPLProviderSelect";
 
@@ -144,25 +144,25 @@ export default function BNPL() {
 
             {/* Manual */}
             {mode === "manual" && (
-              <ManualEntry
-                onCancel={() => {
-                  resetBNPLFlow();
-                  setMode("empty");
-                }}
-                onSave={(data) => {
-                  // ✅ mapping ให้ตรง ManualEntry
-                  setForm({
-                    total: data.totalDebt,
-                    installments: data.installments,
-                    monthly: data.monthlyPayment,
-                    interest: data.interest,
-                    dueDate: data.dueDate,
-                  });
+            <ManualEntry
+              provider={provider}   // 🔥 เพิ่มบรรทัดนี้
+              onCancel={() => {
+                resetBNPLFlow();
+                setMode("empty");
+              }}
+              onSave={(data) => {
+                setForm({
+                  total: data.totalDebt,
+                  installments: data.installments,
+                  monthly: data.monthlyPayment,
+                  interest: data.interest,
+                  dueDate: data.dueDate,
+                });
 
-                  navigate("/dashboard");
-                }}
-              />
-            )}
+                navigate("/dashboard");
+              }}
+            />
+          )}
 
             {/* PDF */}
             {mode === "pdf" && (

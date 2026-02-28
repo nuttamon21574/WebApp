@@ -86,14 +86,10 @@ export default function AuthForm({ type = "login" }) {
 
         const user = userCredential.user
 
-        // ✅ verify email
         await sendEmailVerification(user)
 
-        // ✅ save profile
         await setDoc(doc(db, "users", user.uid), {
           username: username,
-          email: user.email,
-          createdAt: new Date(),
         })
 
         alert(
@@ -110,7 +106,6 @@ export default function AuthForm({ type = "login" }) {
 
       const user = userCredential.user
 
-      // ✅ email verify check
       if (!user.emailVerified) {
         const shouldResend = window.confirm(
           "Your account is not verified.\nResend verification email?"
@@ -124,14 +119,26 @@ export default function AuthForm({ type = "login" }) {
         return
       }
 
-      // ✅ 🔍 CHECK USER PROFILE IN FIRESTORE
-      const snap = await getDoc(doc(db, "users", user.uid))
+      const userRef = doc(db, "users", user.uid)
+      let snap = await getDoc(userRef)
 
-      if (snap.exists()) {
-        // มีข้อมูลแล้ว
+      /* 🔥 ถ้าไม่มี document ให้สร้างใหม่ */
+      if (!snap.exists()) {
+        await setDoc(userRef, {
+          username: "",
+          email: user.email,
+          createdAt: new Date(),
+        })
+
+        navigate("/my-account")
+        return
+      }
+
+      const userData = snap.data()
+
+      if (userData.profileCompleted === true) {
         navigate("/dashboard")
       } else {
-        // ยังไม่มีข้อมูล
         navigate("/my-account")
       }
 

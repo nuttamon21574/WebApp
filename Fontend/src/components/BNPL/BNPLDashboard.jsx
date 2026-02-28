@@ -3,52 +3,139 @@ import BNPLTabs from "./BNPLTabs";
 import BNPLDetailRow from "./BNPLDetailRow";
 
 import { auth, db } from "@/firebase";
-import { doc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 
 export default function BNPLDashboard({
   onShowAdd,
   activeTab,
   onChangeTab,
 }) {
-
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const showStatus = activeTab === "Total BNPL";
+  const isTotal = activeTab === "Total BNPL";
 
-  /* ================= show add button ================= */
   useEffect(() => {
     onShowAdd?.(true);
     return () => onShowAdd?.(false);
   }, [onShowAdd]);
 
-  /* ================= load bnplDebt ================= */
   useEffect(() => {
-
     const unsub = onAuthStateChanged(auth, async (user) => {
-
       if (!user) {
-        console.log("No auth user");
         setData(null);
         setLoading(false);
         return;
       }
 
-      console.log("Dashboard UID:", user.uid);
-
       try {
-        const ref = doc(db, "bnplDebt", user.uid);
-        const snap = await getDoc(ref);
+        const getProviderSummary = async (providerName) => {
+          const ref = doc(
+            db,
+            "bnplDebt",
+            user.uid,
+            "providers",
+            providerName
+          );
 
-        if (snap.exists()) {
-          console.log("Dashboard data:", snap.data());
-          setData(snap.data());
-        } else {
-          console.log("No bnplDebt document found");
-          setData(null);
+          const snap = await getDoc(ref);
+          if (!snap.exists()) return null;
+
+          const d = snap.data();
+          const isSpay = providerName === "SPayLater";
+
+          return {
+            outstandingBalance: d.provider_outstanding || 0,
+            totalDebt: d.provider_original_debt || 0,
+            totalLimit: isSpay
+              ? user.spaylater_limit || 0
+              : user.lazpaylater_limit || 0,
+            monthlyPayment: d.provider_monthly || 0,
+            installments: d.provider_remaining_installments || 0,
+          };
+        };
+
+        // 🔥 ดึง user doc เพื่อเอา limit
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        const userData = userDoc.exists() ? userDoc.data() : {};
+
+        if (!isTotal) {
+          const providerData = await getProviderSummary(activeTab);
+
+          if (!providerData) {
+            setData(null);
+          } else {
+            setData({
+              ...providerData,
+              creditUtilization:
+                providerData.totalLimit > 0
+                  ? ((providerData.outstandingBalance / providerData.totalLimit)).toFixed(2)
+                  : "-",
+            });
+          }
         }
 
+        if (isTotal) {
+          const spayRef = doc(
+            db,
+            "bnplDebt",
+            user.uid,
+            "providers",
+            "SPayLater"
+          );
+
+          const lazRef = doc(
+            db,
+            "bnplDebt",
+            user.uid,
+            "providers",
+            "LazPayLater"
+          );
+
+          const [spaySnap, lazSnap] = await Promise.all([
+            getDoc(spayRef),
+            getDoc(lazRef),
+          ]);
+
+          const spay = spaySnap.exists() ? spaySnap.data() : {};
+          const laz = lazSnap.exists() ? lazSnap.data() : {};
+
+          const totalOutstanding =
+            (spay.provider_outstanding || 0) +
+            (laz.provider_outstanding || 0);
+
+          const totalMonthly =
+            (spay.provider_monthly || 0) +
+            (laz.provider_monthly || 0);
+
+          const totalDebt =
+            (spay.provider_original_debt || 0) +
+            (laz.provider_original_debt || 0);
+
+          const activeLimit =
+            (spay.provider_outstanding > 0
+              ? userData.spaylater_limit || 0
+              : 0) +
+            (laz.provider_outstanding > 0
+              ? userData.lazpaylater_limit || 0
+              : 0);
+
+          const utilization =
+            activeLimit > 0
+              ? ((totalOutstanding / activeLimit)).toFixed(2)
+              : "-";
+
+          setData({
+            outstandingBalance: totalOutstanding,
+            totalDebt: totalDebt,
+            monthlyPayment: totalMonthly,
+            creditUtilization: utilization,
+            platformCount:
+              (spay.provider_outstanding > 0 ? 1 : 0) +
+              (laz.provider_outstanding > 0 ? 1 : 0),
+          });
+        }
       } catch (err) {
         console.error("Dashboard load error:", err);
         setData(null);
@@ -58,71 +145,86 @@ export default function BNPLDashboard({
     });
 
     return () => unsub();
-
-  }, []);
-
-  /* ================= loading ================= */
+  }, [activeTab]);
 
   if (loading) {
     return (
-      <div className="p-10 text-center text-gray-500">
-        Loading dashboard...
+      <div className="p-10 text-center text-gray-500 flex flex-col items-center justify-center min-h-[300px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-900 mb-4"></div>
+        <p>Loading dashboard...</p>
       </div>
     );
   }
 
   const d = data || {};
 
-  /* ================= UI ================= */
-
   return (
     <div className="bg-white rounded-3xl shadow-xl p-10 w-full h-full flex flex-col gap-8">
-
       <BNPLTabs activeTab={activeTab} onChange={onChangeTab} />
 
-      {/* ===== Summary ===== */}
       <div className="flex justify-center w-full">
         <div
           className={`grid gap-8 w-full max-w-4xl ${
-            showStatus ? "md:grid-cols-2" : "grid-cols-1"
+            isTotal ? "md:grid-cols-2" : "grid-cols-1"
           }`}
         >
-
-          {/* Outstanding Balance */}
-          <div className="bg-white rounded-2xl shadow-md p-8 text-center h-[170px] flex flex-col justify-center">
+          <div className="bg-white rounded-2xl shadow-md p-8 text-center h-[170px] flex flex-col justify-center border border-gray-100">
             <p className="text-sm text-gray-500 mb-3">
               Outstanding Balance
             </p>
-
-            <p className="text-3xl font-semibold">
+            <p className="text-3xl font-semibold text-purple-900">
               {d.outstandingBalance ?? "-"}
             </p>
           </div>
 
-          {/* Status */}
-          {showStatus && (
-            <div className="bg-green-400 rounded-2xl p-8 text-white flex flex-col items-center justify-center">
+          {isTotal && (
+            <div className="bg-green-500 rounded-2xl p-8 text-white flex flex-col items-center justify-center shadow-lg">
               <div className="w-11 h-11 bg-white rounded-full flex items-center justify-center text-green-500 text-xl font-bold mb-3">
                 ✓
               </div>
-              <p className="text-sm font-medium">Non-Default</p>
+              <p className="text-sm font-medium uppercase tracking-wider">
+                NON-DEFAULT
+              </p>
             </div>
           )}
-
         </div>
       </div>
 
-      {/* ===== Details ===== */}
-      <div className="grid md:grid-cols-2 gap-y-6 gap-x-16 text-sm">
+      <div className="grid md:grid-cols-2 gap-y-6 gap-x-16 text-sm border-t border-gray-50 pt-8">
+        {/* <BNPLDetailRow label="Total Debt" value={d.totalDebt ?? "-"} /> */}
 
-        <BNPLDetailRow label="Total Debt" value={d.totalDebt ?? "-"} />
-        <BNPLDetailRow label="Interest" value={d.interest ?? "-"} />
-        <BNPLDetailRow label="Monthly Payment" value={d.monthlyPayment ?? "-"} />
-        <BNPLDetailRow label="Installments" value={d.installments ?? "-"} />
-        <BNPLDetailRow label="Due Date" value={d.dueDate ?? "-"} />
-
+        {isTotal ? (
+          <>
+            <BNPLDetailRow
+              label="Credit Utilization"
+              value={
+                d.creditUtilization !== "-"
+                  ? `${d.creditUtilization}`
+                  : "-"
+              }
+            />
+            <BNPLDetailRow
+              label="Monthly Payment"
+              value={d.monthlyPayment ?? "-"}
+            />
+            <BNPLDetailRow
+              label="Platform Count"
+              value={d.platformCount ?? "-"}
+            />
+          </>
+        ) : (
+          <>
+            <BNPLDetailRow
+              label="Monthly Payment"
+              value={d.monthlyPayment ?? "-"}
+            />
+            <BNPLDetailRow
+              label="Installments"
+              value={d.installments ?? "-"}
+            />
+          </>
+        )}
       </div>
-
     </div>
   );
 }

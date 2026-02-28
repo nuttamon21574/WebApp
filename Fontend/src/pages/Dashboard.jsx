@@ -10,6 +10,7 @@ export default function Dashboard() {
   const [showAddButton, setShowAddButton] = useState(false);
   const [activeTab, setActiveTab] = useState("Total BNPL");
 
+  // ข้อมูลฟอร์มเบื้องต้น
   const [form, setForm] = useState({
     total: "",
     installments: "",
@@ -19,8 +20,8 @@ export default function Dashboard() {
   });
 
   const handleAddClick = () => {
-    const startMode =
-      activeTab === "LazPayLater" ? "manual" : "pdf";
+    // กำหนด mode ตาม Tab ที่เลือก
+    const startMode = activeTab === "LazPayLater" ? "manual" : "pdf";
 
     navigate("/bnpl", {
       state: {
@@ -38,7 +39,7 @@ export default function Dashboard() {
         <Sidebar activeTab="Dashboard" />
 
         {/* Main Content */}
-        <div className="flex flex-col mt-10 lg:mt-0">
+        <div className="flex flex-col mt-10 lg:mt-0 relative">
 
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
@@ -47,16 +48,15 @@ export default function Dashboard() {
             </p>
           </div>
 
-          {/* Add Button */}
-          {showAddButton &&
-            ["Total BNPL", "SPayLater", "LazPayLater"].includes(activeTab) && (
-              <div className="fixed top-6 right-6 z-50">
-                <AddButton onClick={handleAddClick} />
-              </div>
-            )}
+          {/* Add Button - วางไว้ในเลเยอร์ที่สูงสุดเสมอ */}
+          {showAddButton && ["Total BNPL", "SPayLater", "LazPayLater"].includes(activeTab) && (
+            <div className="fixed top-6 right-6 z-[999]">
+              <AddButton onClick={handleAddClick} />
+            </div>
+          )}
 
           {/* Card Container */}
-          <div className="bg-white rounded-3xl w-full p-4 sm:p-6 lg:p-10 flex-1 overflow-auto">
+          <div className="bg-white rounded-3xl w-full p-4 sm:p-6 lg:p-10 flex-1 overflow-auto shadow-2xl">
             <BNPLDashboard
               form={form}
               onShowAdd={setShowAddButton}
