@@ -9,7 +9,7 @@ export default function EmptyBNPL({ onAdd, disabled }) {
 
         {/* Title */}
         <h2 className="col-span-4 text-xl font-semibold text-gray-800">
-          No BNPL Found
+          No Buy Now Pay Later Found
         </h2>
 
         {/* Subtitle */}
