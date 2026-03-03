@@ -5,17 +5,32 @@ const cors = require("cors");
 const fileUpload = require("express-fileupload");
 const admin = require("firebase-admin");
 
-
 /* ================= FIREBASE ================= */
-admin.initializeApp({
-  credential: admin.credential.cert(require("./serviceAccountKey.json")),
-});
 
+let credential;
+
+if (process.env.FIREBASE_PRIVATE_KEY) {
+  // Production (Render)
+  credential = admin.credential.cert({
+    projectId: process.env.FB_PROJECT_ID,
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+  });
+} else {
+  // Local
+  const serviceAccount = require("./serviceAccountKey.json");
+  credential = admin.credential.cert(serviceAccount);
+}
+
+admin.initializeApp({ credential });
 /* ================= APP INIT ================= */
-const app = express();   // ✅ ต้องประกาศก่อนใช้
+const app = express();
 
 app.use(cors({
-  origin: "http://localhost:5173",
+  origin: [
+    "http://localhost:5173",
+    "https://your-frontend.vercel.app"
+  ],
   methods: ["GET", "POST"],
 }));
 
@@ -34,6 +49,8 @@ app.use("/api/persona", personaRoute);
 app.use("/api/ai", aiRoute);
 
 /* ================= START ================= */
-app.listen(5000, () => {
-  console.log("Server running on port 5000");
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
