@@ -1,7 +1,10 @@
+require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
 const fileUpload = require("express-fileupload");
 const admin = require("firebase-admin");
+
 
 /* ================= FIREBASE ================= */
 admin.initializeApp({
@@ -23,10 +26,12 @@ app.use(fileUpload());
 const uploadRoute = require("./routes/upload");
 const calculateRoute = require("./routes/calculate");
 const personaRoute = require("./routes/persona");
+const aiRoute = require("./routes/ai");
 
 app.use("/api", uploadRoute);
 app.use("/api/calculate", calculateRoute);
 app.use("/api/persona", personaRoute);
+app.use("/api/ai", aiRoute);
 
 /* ================= START ================= */
 app.listen(5000, () => {
