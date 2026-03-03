@@ -113,7 +113,7 @@ function parseLoanData(rows) {
       const month = monthMap[dateMatch[2]];
       const year = dateMatch[3];
 
-      const formattedDate = `${day}/${month}/${year}`;
+      const formattedDate = `${month}/${day}/${year}`;
 
       const amounts =
         block.match(/\d{1,3}(?:,\d{3})*\.\d{2}/g) || [];
