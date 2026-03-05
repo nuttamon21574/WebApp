@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import BNPLTabs from "./BNPLTabs";
 import BNPLDetailRow from "./BNPLDetailRow";
+import RiskTier from "../Card/Risk_tier.jsx";
+
 
 import { auth, db } from "@/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -13,6 +15,11 @@ export default function BNPLDashboard({
 }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const [riskTier, setRiskTier] = useState("null");
+
+  
+
 
   const isTotal = activeTab === "Total BNPL";
 
@@ -56,9 +63,11 @@ export default function BNPLDashboard({
           };
         };
 
-        // 🔥 ดึง user doc เพื่อเอา limit
+        
         const userDoc = await getDoc(doc(db, "users", user.uid));
         const userData = userDoc.exists() ? userDoc.data() : {};
+
+        setRiskTier(userData.risk_tier || "null");
 
         if (!isTotal) {
           const providerData = await getProviderSummary(activeTab);
@@ -178,14 +187,7 @@ export default function BNPLDashboard({
           </div>
 
           {isTotal && (
-            <div className="bg-green-500 rounded-2xl p-8 text-white flex flex-col items-center justify-center shadow-lg">
-              <div className="w-11 h-11 bg-white rounded-full flex items-center justify-center text-green-500 text-xl font-bold mb-3">
-                ✓
-              </div>
-              <p className="text-sm font-medium uppercase tracking-wider">
-                NON-DEFAULT
-              </p>
-            </div>
+            <RiskTier riskTier={riskTier} />
           )}
         </div>
       </div>

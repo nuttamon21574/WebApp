@@ -174,10 +174,6 @@ router.post("/calculate-and-save", async (req, res) => {
     if (userSnap.exists) {
       const userData = userSnap.data();
 
-      console.log("USER DATA:", userData);         // 🔥 ดูทั้ง document
-      console.log("INCOME FIELD:", userData.income); // 🔥 ดู income ตรง ๆ
-
-
       spayLimit = toNumber(userData.spaylater_limit);
       lazLimit = toNumber(userData.lazpaylater_limit);
 
