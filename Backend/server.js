@@ -1,4 +1,5 @@
 require("dotenv").config();
+console.log("KEY:", process.env.OPENAI_API_KEY);
 
 const express = require("express");
 const cors = require("cors");
@@ -29,7 +30,6 @@ const app = express();
 app.use(cors({
   origin: [
     "http://localhost:5173",
-    "https://your-frontend.vercel.app"
   ],
   methods: ["GET", "POST"],
 }));

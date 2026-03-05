@@ -169,11 +169,19 @@ router.post("/calculate-and-save", async (req, res) => {
 
     let spayLimit = 0;
     let lazLimit = 0;
+    let monthlyIncome = 0;
 
     if (userSnap.exists) {
       const userData = userSnap.data();
+
+      console.log("USER DATA:", userData);         // 🔥 ดูทั้ง document
+      console.log("INCOME FIELD:", userData.income); // 🔥 ดู income ตรง ๆ
+
+
       spayLimit = toNumber(userData.spaylater_limit);
       lazLimit = toNumber(userData.lazpaylater_limit);
+
+      monthlyIncome = toNumber(userData.income);
     }
 
     const providerRef = db
@@ -264,13 +272,13 @@ router.post("/calculate-and-save", async (req, res) => {
     const spayDays = toNumber(spayData.provider_days_since_last_payment);
     const lazDays = toNumber(lazData.provider_days_since_last_payment);
 
-    let monthlyIncome = 0;
+    
 
     if (userSnap.exists) {
       const userData = userSnap.data();
       spayLimit = toNumber(userData.spaylater_limit);
       lazLimit = toNumber(userData.lazpaylater_limit);
-      monthlyIncome = toNumber(userData.monthly_income); // 🔥 เพิ่มบรรทัดนี้
+      monthlyIncome = toNumber(userData.income); // 🔥 เพิ่มบรรทัดนี้
     }
 
     let activeLimit = 0;
