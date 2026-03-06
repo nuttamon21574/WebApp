@@ -42,11 +42,14 @@ const uploadRoute = require("./routes/upload");
 const calculateRoute = require("./routes/calculate");
 const personaRoute = require("./routes/persona");
 const aiRoute = require("./routes/ai");
+const mlRoutes = require("./routes/ml")
+
 
 app.use("/api", uploadRoute);
 app.use("/api/calculate", calculateRoute);
 app.use("/api/persona", personaRoute);
 app.use("/api/ai", aiRoute);
+app.use("/api/ml", mlRoutes);
 
 /* ================= START ================= */
 const PORT = process.env.PORT || 5000;
