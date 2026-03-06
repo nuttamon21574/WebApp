@@ -4,6 +4,7 @@ const admin = require("firebase-admin");
 
 const db = admin.firestore();
 const { assignPersona } = require("../services/personaEngine");
+const { runRiskModel } = require("../services/mlService")
 
 router.get("/", (req, res) => {
   res.json({ message: "Persona API working" });
@@ -32,6 +33,32 @@ router.get("/:uid", async (req, res) => {
     const persona = assignPersona(userData);
 
     console.log("Assigned Persona:", persona);
+
+    // ===== RUN ML IF PERSONA = CAN PREPAY =====
+if (persona === "Can Prepay") {
+
+  const modelInput = {
+    installment_to_income: userData.installment_to_income,
+    credit_utilization: userData.credit_utilization,
+    platform_count: userData.platform_count,
+    spaylater_missed_installments: userData.spaylater_missed_installments,
+    lazpaylater_missed_installments: userData.lazpaylater_missed_installments
+  };
+
+  console.log("Running ML model...");
+
+  const result = await runRiskModel(modelInput);
+
+  await docRef.set(
+    {
+      risk_tier: result.risk_tier,
+      risk_updated_at: admin.firestore.FieldValue.serverTimestamp()
+    },
+    { merge: true }
+  );
+
+  console.log("ML risk tier:", result.risk_tier);
+}
 
     if (!persona) {
       return res.status(400).json({
