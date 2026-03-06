@@ -15,6 +15,7 @@ import { useNavigate } from "react-router-dom";
 ======================================================= */
 
 export default function ManualEntry({ onSave, provider }) {
+
   const navigate = useNavigate();
 
   /* -------------------- Initial State -------------------- */
@@ -37,7 +38,7 @@ export default function ManualEntry({ onSave, provider }) {
   const isItemComplete = (item) =>
     item.productName.trim() !== "" &&
     item.purchaseDate &&
-    item.dueDate && 
+    item.dueDate &&
     item.totalDebt !== "" &&
     item.annualInterestRate !== "" &&
     item.totalInstallments !== "" &&
@@ -51,6 +52,7 @@ export default function ManualEntry({ onSave, provider }) {
   /* -------------------- Handlers -------------------- */
 
   const handleChange = (index, e) => {
+
     const { name, value } = e.target;
 
     setItems((prev) => {
@@ -58,94 +60,112 @@ export default function ManualEntry({ onSave, provider }) {
       updated[index][name] = value;
       return updated;
     });
+
   };
 
   const addItem = () => {
+
     if (!lastItemComplete) {
       alert("Please complete the current product before adding a new one.");
       return;
     }
 
     setItems((prev) => [...prev, { ...emptyItem }]);
+
   };
 
   const removeItem = (index) => {
+
     const updated = items.filter((_, i) => i !== index);
     setItems(updated.length ? updated : [emptyItem]);
+
   };
 
+  /* -------------------- Save -------------------- */
+
   const handleSave = async () => {
-  try {
-    const user = auth.currentUser;
 
-    if (!user) {
-      alert("Please login first");
-      return;
-    }
+    try {
 
-    const token = await user.getIdToken(true);
-    const uid = user.uid; // ✅ เพิ่มบรรทัดนี้
+      const user = auth.currentUser;
 
-    // 1️⃣ เรียก calculate ก่อน
-    const response = await fetch(
-      "http://localhost:5000/api/calculate/calculate-and-save",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          provider,
-          items,
-        }),
+      if (!user) {
+        alert("Please login first");
+        return;
       }
-    );
 
-    const data = await response.json();
+      const token = await user.getIdToken(true);
+      const uid = user.uid;
 
-    if (!response.ok) {
-      throw new Error(data.error || "Save failed");
-    }
+      const response = await fetch(
+        "http://localhost:5000/api/calculate/calculate-and-save",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            provider,
+            items,
+          }),
+        }
+      );
 
-    // 2️⃣ เรียก persona ต่อทันที
-    const personaResponse = await fetch(
-      `http://localhost:5000/api/persona/${uid}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Save failed");
       }
-    );
 
-    const personaData = await personaResponse.json();
+      /* Persona */
 
-    if (!personaResponse.ok) {
-      throw new Error(personaData.error || "Persona failed");
+      const personaResponse = await fetch(
+        `http://localhost:5000/api/persona/${uid}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const personaData = await personaResponse.json();
+
+      if (!personaResponse.ok) {
+        throw new Error(personaData.error || "Persona failed");
+      }
+
+      console.log("Persona:", personaData.persona);
+
+      alert("Saved successfully!");
+      navigate("/dashboard");
+
+    } catch (err) {
+
+      console.error("SAVE ERROR:", err);
+      alert(err.message);
+
     }
 
-    console.log("🔥 Persona:", personaData.persona);
-
-    alert("Saved & Persona updated successfully!");
-    navigate("/dashboard");
-
-  } catch (err) {
-    console.error("SAVE ERROR:", err);
-    alert(err.message);
-  }
-};
+  };
 
   /* -------------------- UI -------------------- */
 
   return (
+
     <div className="space-y-10">
+
       {items.map((item, index) => (
+
         <div
           key={index}
           className="border rounded-2xl p-8 bg-gray-50"
         >
+
           {/* Header */}
+
           <div className="flex justify-between mb-6">
+
             <h3 className="font-semibold text-lg">
               Product {index + 1}
             </h3>
@@ -158,10 +178,13 @@ export default function ManualEntry({ onSave, provider }) {
                 Remove
               </button>
             )}
+
           </div>
 
-          {/* Form Grid */}
+          {/* Form */}
+
           <div className="grid grid-cols-2 gap-6 text-sm">
+
             <TextField
               label="Product Name"
               name="productName"
@@ -176,7 +199,6 @@ export default function ManualEntry({ onSave, provider }) {
               onChange={(e) => handleChange(index, e)}
             />
 
-            {/* ✅ NEW FIELD */}
             <DateField
               label="Due Date"
               name="dueDate"
@@ -190,23 +212,26 @@ export default function ManualEntry({ onSave, provider }) {
               value={item.totalDebt}
               onChange={(e) => handleChange(index, e)}
               step="0.01"
+              unit="Baht"
             />
 
             <NumberField
-              label="Annual Interest Rate (%)"
+              label="Annual Interest Rate"
               name="annualInterestRate"
               value={item.annualInterestRate}
               onChange={(e) => handleChange(index, e)}
               step="0.01"
+              unit="%"
             />
 
             <NumberField
-              label="Total Installments"
+              label="Number of Installments"
               name="totalInstallments"
               value={item.totalInstallments}
               onChange={(e) => handleChange(index, e)}
               step="1"
               min="1"
+              unit="months"
             />
 
             <NumberField
@@ -216,6 +241,7 @@ export default function ManualEntry({ onSave, provider }) {
               onChange={(e) => handleChange(index, e)}
               step="0.01"
               min="0"
+              unit="Baht"
             />
 
             <NumberField
@@ -225,29 +251,42 @@ export default function ManualEntry({ onSave, provider }) {
               onChange={(e) => handleChange(index, e)}
               step="0.01"
               min="0"
+              unit="Baht"
             />
+
           </div>
+
         </div>
+
       ))}
 
-      {/* Add Button */}
+      {/* Add */}
+
       <div className="flex justify-end">
+
         <AddManual
           onClick={addItem}
           text="Add Product"
           disabled={!lastItemComplete}
         />
+
       </div>
 
-      {/* Save Button */}
+      {/* Save */}
+
       <div className="flex justify-center gap-8">
+
         <SaveButton
           isComplete={isComplete}
           onClick={handleSave}
         />
+
       </div>
+
     </div>
+
   );
+
 }
 
 /* =======================================================
@@ -255,11 +294,15 @@ export default function ManualEntry({ onSave, provider }) {
 ======================================================= */
 
 function TextField({ label, name, value, onChange }) {
+
   return (
+
     <div>
+
       <h4 className="mb-2 font-medium text-gray-700">
         {label}
       </h4>
+
       <input
         type="text"
         name={name}
@@ -267,9 +310,14 @@ function TextField({ label, name, value, onChange }) {
         onChange={onChange}
         className="w-full border rounded-xl px-4 py-3"
       />
+
     </div>
+
   );
+
 }
+
+/* Number Field */
 
 function NumberField({
   label,
@@ -278,31 +326,53 @@ function NumberField({
   onChange,
   step = "1",
   min = "0",
+  unit = ""
 }) {
+
   return (
+
     <div>
+
       <h4 className="mb-2 font-medium text-gray-700">
         {label}
       </h4>
-      <input
-        type="number"
-        name={name}
-        value={value}
-        onChange={onChange}
-        step={step}
-        min={min}
-        className="w-full border rounded-xl px-4 py-3"
-      />
+
+      <div className="relative">
+
+        <input
+          type="number"
+          name={name}
+          value={value}
+          onChange={onChange}
+          step={step}
+          min={min}
+          className="w-full border rounded-xl px-4 py-3 pr-20"
+        />
+
+        {unit && (
+          <span className="absolute right-4 top-3 text-gray-500 text-sm">
+            {unit}
+          </span>
+        )}
+
+      </div>
+
     </div>
+
   );
+
 }
 
+/* Date Field */
+
 function DateField({ label, name, value, onChange }) {
+
   const selectedDate = value
     ? parse(value, "dd/MM/yyyy", new Date())
     : null;
 
   const handleChangeDate = (date) => {
+
     if (!date) {
       onChange({
         target: { name, value: "" },
@@ -315,10 +385,13 @@ function DateField({ label, name, value, onChange }) {
     onChange({
       target: { name, value: formatted },
     });
+
   };
 
   return (
+
     <div>
+
       <h4 className="mb-2 font-medium text-gray-700">
         {label}
       </h4>
@@ -337,6 +410,9 @@ function DateField({ label, name, value, onChange }) {
         scrollableYearDropdown
         isClearable
       />
+
     </div>
+
   );
+
 }
