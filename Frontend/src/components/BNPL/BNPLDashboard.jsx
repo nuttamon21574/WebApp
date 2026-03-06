@@ -3,7 +3,6 @@ import BNPLTabs from "./BNPLTabs";
 import BNPLDetailRow from "./BNPLDetailRow";
 import RiskTier from "../Card/Risk_tier.jsx";
 
-
 import { auth, db } from "@/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
@@ -13,15 +12,43 @@ export default function BNPLDashboard({
   activeTab,
   onChangeTab,
 }) {
+
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-
   const [riskTier, setRiskTier] = useState("null");
 
-  
-
-
   const isTotal = activeTab === "Total BNPL";
+
+  /* ============================= */
+  /* GENERATE AI FUNCTION */
+  /* ============================= */
+
+  const generateAI = async () => {
+    try {
+
+      const user = auth.currentUser;
+      if (!user) return;
+
+      console.log("🚀 Start AI Generation");
+
+      const token = await user.getIdToken();
+
+      const res = await fetch("http://localhost:5000/api/ai/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const result = await res.json();
+
+      console.log("🤖 AI RESULT:", result);
+
+    } catch (err) {
+      console.error("AI Error:", err);
+    }
+  };
 
   useEffect(() => {
     onShowAdd?.(true);
@@ -29,7 +56,9 @@ export default function BNPLDashboard({
   }, [onShowAdd]);
 
   useEffect(() => {
+
     const unsub = onAuthStateChanged(auth, async (user) => {
+
       if (!user) {
         setData(null);
         setLoading(false);
@@ -37,7 +66,9 @@ export default function BNPLDashboard({
       }
 
       try {
+
         const getProviderSummary = async (providerName) => {
+
           const ref = doc(
             db,
             "bnplDebt",
@@ -47,6 +78,7 @@ export default function BNPLDashboard({
           );
 
           const snap = await getDoc(ref);
+
           if (!snap.exists()) return null;
 
           const d = snap.data();
@@ -63,29 +95,70 @@ export default function BNPLDashboard({
           };
         };
 
-        
+        /* ============================= */
+        /* LOAD USER DATA */
+        /* ============================= */
+
         const userDoc = await getDoc(doc(db, "users", user.uid));
         const userData = userDoc.exists() ? userDoc.data() : {};
 
         setRiskTier(userData.risk_tier || "null");
 
+        /* ============================= */
+        /* CHECK DATA BEFORE GENERATE AI */
+        /* ============================= */
+
+        if (
+          userData.income &&
+          userData.expense &&
+          userData.total_debt
+        ) {
+
+          console.log("📊 User data complete → Generate AI");
+
+          await generateAI();
+
+        } else {
+
+          console.log("⚠️ User data incomplete → Skip AI");
+
+        }
+
+        /* ============================= */
+        /* PROVIDER DATA */
+        /* ============================= */
+
         if (!isTotal) {
+
           const providerData = await getProviderSummary(activeTab);
 
           if (!providerData) {
+
             setData(null);
+
           } else {
+
             setData({
               ...providerData,
               creditUtilization:
                 providerData.totalLimit > 0
-                  ? ((providerData.outstandingBalance / providerData.totalLimit)).toFixed(2)
+                  ? (
+                      providerData.outstandingBalance /
+                      providerData.totalLimit
+                    ).toFixed(2)
                   : "-",
             });
+
           }
+
         }
 
+        /* ============================= */
+        /* TOTAL BNPL */
+        /* ============================= */
+
         if (isTotal) {
+
           const spayRef = doc(
             db,
             "bnplDebt",
@@ -132,7 +205,7 @@ export default function BNPLDashboard({
 
           const utilization =
             activeLimit > 0
-              ? ((totalOutstanding / activeLimit)).toFixed(2)
+              ? (totalOutstanding / activeLimit).toFixed(2)
               : "-";
 
           setData({
@@ -144,16 +217,22 @@ export default function BNPLDashboard({
               (spay.provider_outstanding > 0 ? 1 : 0) +
               (laz.provider_outstanding > 0 ? 1 : 0),
           });
+
         }
+
       } catch (err) {
+
         console.error("Dashboard load error:", err);
         setData(null);
+
       }
 
       setLoading(false);
+
     });
 
     return () => unsub();
+
   }, [activeTab]);
 
   if (loading) {
@@ -169,6 +248,7 @@ export default function BNPLDashboard({
 
   return (
     <div className="bg-white rounded-3xl shadow-xl p-10 w-full h-full flex flex-col gap-8">
+
       <BNPLTabs activeTab={activeTab} onChange={onChangeTab} />
 
       <div className="flex justify-center w-full">
@@ -177,6 +257,7 @@ export default function BNPLDashboard({
             isTotal ? "md:grid-cols-2" : "grid-cols-1"
           }`}
         >
+
           <div className="bg-white rounded-2xl shadow-md p-8 text-center h-[170px] flex flex-col justify-center border border-gray-100">
             <p className="text-sm text-gray-500 mb-3">
               Outstanding Balance
@@ -189,11 +270,11 @@ export default function BNPLDashboard({
           {isTotal && (
             <RiskTier riskTier={riskTier} />
           )}
+
         </div>
       </div>
 
       <div className="grid md:grid-cols-2 gap-y-6 gap-x-16 text-sm border-t border-gray-50 pt-8">
-        {/* <BNPLDetailRow label="Total Debt" value={d.totalDebt ?? "-"} /> */}
 
         {isTotal ? (
           <>
@@ -205,10 +286,12 @@ export default function BNPLDashboard({
                   : "-"
               }
             />
+
             <BNPLDetailRow
               label="Monthly Payment"
               value={d.monthlyPayment ?? "-"}
             />
+
             <BNPLDetailRow
               label="Platform Count"
               value={d.platformCount ?? "-"}
@@ -220,13 +303,16 @@ export default function BNPLDashboard({
               label="Monthly Payment"
               value={d.monthlyPayment ?? "-"}
             />
+
             <BNPLDetailRow
               label="Installments"
               value={d.installments ?? "-"}
             />
           </>
         )}
+
       </div>
+
     </div>
   );
 }

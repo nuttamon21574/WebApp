@@ -277,19 +277,40 @@ router.post("/calculate-and-save", async (req, res) => {
       monthlyIncome = toNumber(userData.income); // 🔥 เพิ่มบรรทัดนี้
     }
 
-    let activeLimit = 0;
-    if (spayOutstanding > 0) activeLimit += spayLimit;
-    if (lazOutstanding > 0) activeLimit += lazLimit;
+    /* ============================= */
+    /* LIMIT CALCULATION */
+    /* ============================= */
+
+    const activeLimit = spayLimit + lazLimit;
+
+    /* ============================= */
+    /* CREDIT UTILIZATION */
+    /* ============================= */
 
     const creditUtilization =
       activeLimit > 0
-        ? Number((totalOutstandingAll / activeLimit).toFixed(2))
+        ? Number((totalOutstandingAll / activeLimit).toFixed(4))
         : 0;
-    
+
+    /* ============================= */
+    /* INSTALLMENT TO INCOME */
+    /* ============================= */
+
     const installmentToIncome =
       monthlyIncome > 0
-        ? Number((totalMonthlyAll / monthlyIncome).toFixed(2))
+        ? Number((totalMonthlyAll / monthlyIncome).toFixed(4))
         : 0;
+
+    /* ============================= */
+    /* DEBUG (optional) */
+    /* ============================= */
+
+    console.log("spayLimit:", spayLimit);
+    console.log("lazLimit:", lazLimit);
+    console.log("activeLimit:", activeLimit);
+    console.log("totalOutstandingAll:", totalOutstandingAll);
+    console.log("creditUtilization:", creditUtilization);
+    console.log("installmentToIncome:", installmentToIncome);
 
     await userRef.set(
       {
