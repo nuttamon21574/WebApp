@@ -5,33 +5,39 @@ import {
   query,
   orderBy,
   limit,
-  getDocs,
-  where
+  getDocs
 } from "firebase/firestore";
 import { db, auth } from "@/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 
 export default function Statinfo() {
 
   const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchRecommendation();
+
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+
+      if (user) {
+        fetchRecommendation(user.uid);
+      } else {
+        console.log("No user login");
+        setLoading(false);
+      }
+
+    });
+
+    return () => unsubscribe();
+
   }, []);
 
-  const fetchRecommendation = async () => {
+  const fetchRecommendation = async (uid) => {
 
     try {
 
-      const user = auth.currentUser;
-
-      if (!user) {
-        console.log("No user login");
-        return;
-      }
-
       const q = query(
-        collection(db, "recommendation"),
-        where("userId", "==", user.uid),
+        collection(db, "recommendation", uid, "history"),
         orderBy("createdAt", "desc"),
         limit(1)
       );
@@ -49,6 +55,8 @@ export default function Statinfo() {
       console.error("Fetch recommendation error:", err);
     }
 
+    setLoading(false);
+
   };
 
   return (
@@ -62,7 +70,7 @@ export default function Statinfo() {
 
         <div className="pb-10 pt-5">
           <p className="text-black/80">
-            {data?.financial_status || "-"}
+            {loading ? "Loading..." : data?.financial_status || "-"}
           </p>
         </div>
       </div>
@@ -117,13 +125,9 @@ export default function Statinfo() {
               Action
             </h3>
 
-            <ul className="list-disc list-inside space-y-1 text-sm">
-              {data?.advice?.length
-                ? data.advice.map((item, index) => (
-                    <li key={index}>{item}</li>
-                  ))
-                : <li>-</li>}
-            </ul>
+            <p className="text-sm text-gray-700">
+              {data?.actions || "-"}
+            </p>
           </div>
 
           {/* Benefits */}

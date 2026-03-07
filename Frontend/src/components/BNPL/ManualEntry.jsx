@@ -200,7 +200,7 @@ export default function ManualEntry({ onSave, provider }) {
             />
 
             <DateField
-              label="Due Date"
+              label="Latest Payment Due Date"
               name="dueDate"
               value={item.dueDate}
               onChange={(e) => handleChange(index, e)}
@@ -224,15 +224,28 @@ export default function ManualEntry({ onSave, provider }) {
               unit="%"
             />
 
-            <NumberField
-              label="Number of Installments"
-              name="totalInstallments"
-              value={item.totalInstallments}
-              onChange={(e) => handleChange(index, e)}
-              step="1"
-              min="1"
-              unit="months"
-            />
+            <div>
+              <h4 className="mb-2 font-medium text-gray-700">
+                Total Installments
+              </h4>
+
+              <select
+                name="totalInstallments"
+                value={item.totalInstallments}
+                onChange={(e) => handleChange(index, e)}
+                className="w-full border rounded-xl px-4 py-3"
+              >
+                <option value="">Select installment plan</option>
+                <option value="1">1 month</option>
+                <option value="3">3 months</option>
+                <option value="6">6 months</option>
+                <option value="9">9 months</option>
+                <option value="12">12 months</option>
+                <option value="18">18 months</option>
+                <option value="24">24 months</option>
+                <option value="36">36 months</option>
+              </select>
+            </div>
 
             <NumberField
               label="Monthly Installment"
