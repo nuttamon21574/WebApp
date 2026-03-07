@@ -5,6 +5,7 @@ const admin = require("firebase-admin");
 const db = admin.firestore();
 const { assignPersona } = require("../services/personaEngine");
 const { runRiskModel } = require("../services/mlService")
+const { generateFinancialAdvice } = require("../services/aiService");
 
 router.get("/", (req, res) => {
   res.json({ message: "Persona API working" });
@@ -34,7 +35,8 @@ router.get("/:uid", async (req, res) => {
 
     console.log("Assigned Persona:", persona);
 
-    // ===== RUN ML IF PERSONA = CAN PREPAY =====
+let riskTier = userData.risk_tier || "MEDIUM";
+
 if (persona === "Can Prepay") {
 
   const modelInput = {
@@ -45,20 +47,49 @@ if (persona === "Can Prepay") {
     lazpaylater_missed_installments: userData.lazpaylater_missed_installments
   };
 
-  console.log("Running ML model...");
-
   const result = await runRiskModel(modelInput);
 
-  await docRef.set(
-    {
-      risk_tier: result.risk_tier,
-      risk_updated_at: admin.firestore.FieldValue.serverTimestamp()
-    },
-    { merge: true }
-  );
+  riskTier = result.risk_tier;
+
+  await docRef.set({
+    risk_tier: riskTier
+  }, { merge: true });
 
   console.log("ML risk tier:", result.risk_tier);
 }
+
+console.log("🤖 Generating AI advice...");
+
+const advice = await generateFinancialAdvice({
+  ...userData,
+  persona,
+  risk_tier: riskTier
+});
+
+console.log("AI RESULT:", advice);
+
+if (!advice.error) {
+
+  await db.collection("recommendation").add({
+
+    userId: uid,
+
+    group: advice.group,
+    strategy: advice.strategy,
+    recommended_payment: advice.recommended_payment,
+    remaining_monthly_cash: advice.remaining_monthly_cash,
+
+    actions: advice.actions,
+    benefits: advice.benefits,
+
+    createdAt: admin.firestore.FieldValue.serverTimestamp()
+
+  });
+
+  console.log("AI recommendation saved");
+
+}
+
 
     if (!persona) {
       return res.status(400).json({
@@ -87,10 +118,12 @@ if (persona === "Can Prepay") {
     console.log("🔥 Persona saved successfully");
     console.log("================================");
 
-    return res.json({
-      success: true,
-      persona: persona
-    });
+  return res.json({
+    success: true,
+    persona: persona,
+    risk_tier: riskTier,
+    recommendation: advice
+  });
 
   } catch (error) {
     console.error("Persona API Error:", error);
