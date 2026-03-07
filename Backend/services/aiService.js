@@ -3,23 +3,36 @@ const axios = require("axios");
 async function generateFinancialAdvice(user) {
 
   /* ===============================
-     1) REQUIRED FIELD CHECK
+     1️⃣ REQUIRED FIELD CHECK
   =============================== */
 
   const requiredFields = [
+
     "income",
     "expense",
-    "spaylater_debt",
-    "spaylater_monthly_due",
-    "installments_spaylater",
-    "spaylater_interest",
-    "lazpaylater_debt",
-    "lazpaylater_monthly_due",
-    "installments_lazpaylater",
-    "lazpaylater_interest",
-    "persona",
+
+    "spaylater_limit",
+    "spaylater_outstanding_debt",
+    "spaylater_monthly_installment",
+    "spaylater_missed_installments",
+
+    "lazpaylater_limit",
+    "lazpaylater_outstanding_debt",
+    "lazpaylater_monthly_installment",
+    "lazpaylater_missed_installments",
+
+    "balance",
     "platform_count",
-    "risk_tier",
+
+    "total_installment",
+    "total_debt",
+    "total_limit",
+
+    "installment_to_income",
+    "credit_utilization",
+
+    "persona",
+    "risk_tier"
   ];
 
   for (const field of requiredFields) {
@@ -29,7 +42,7 @@ async function generateFinancialAdvice(user) {
   }
 
   /* ===============================
-     2) CALCULATE CORE VALUES
+     2️⃣ CORE VALUES
   =============================== */
 
   const income = Number(user.income);
@@ -39,117 +52,91 @@ async function generateFinancialAdvice(user) {
     return { error: "รายได้ต้องมากกว่า 0" };
   }
 
-  const balance = Number((income - expense).toFixed(2));
+  const balance = Number(user.balance);
 
-  const total_debt = Number(
-    Number(user.spaylater_debt) +
-    Number(user.lazpaylater_debt)
-  );
-
-  const total_installment = Number(
-    Number(user.spaylater_monthly_due) +
-    Number(user.lazpaylater_monthly_due)
-  );
+  const total_debt = Number(user.total_debt);
+  const total_installment = Number(user.total_installment);
 
   const ie_ratio =
     expense === 0 ? 0 : Number((income / expense).toFixed(2));
 
-  const dti = Number(((total_installment / income) * 100).toFixed(2));
+  const dti =
+    Number(((total_installment / income) * 100).toFixed(2));
 
   if (total_debt === 0) {
     return { error: "ไม่พบยอดหนี้ BNPL" };
   }
 
   /* ===============================
-     3) DETERMINE GROUP + STRATEGY
+     3️⃣ DETERMINE GROUP + STRATEGY
   =============================== */
 
-  const persona = user.persona.trim();
-  const riskTier = user.risk_tier.toUpperCase();
+  const persona = (user.persona || "").trim();
+  const riskTier = (user.risk_tier || "MEDIUM").toUpperCase();
 
-  let group = "";
-  let strategy = "";
+  let group = "UNKNOWN";
+  let strategy = "NONE";
   let recommended_payment = 0;
 
-  switch (persona) {
+  if (persona === "Full Clearance" && balance > total_debt) {
 
-    case "Full Clearance":
-      if (balance > total_debt) {
-        group = "FULL_CLEARANCE";
-        recommended_payment = total_debt;
-      } else {
-        return { error: "persona ไม่ตรงกับเงื่อนไขจริง" };
-      }
-      break;
+    group = "FULL_CLEARANCE";
+    recommended_payment = total_debt;
 
-    case "Can Prepay":
-      if (balance > total_installment && balance < total_debt) {
+  }
 
-        group = "CAN_PREPAY";
+  else if (persona === "Can Prepay") {
 
-        if (riskTier === "HIGH") {
-          strategy = "MINIMUM_ONLY";
-          recommended_payment = total_installment;
-        }
+    group = "CAN_PREPAY";
 
-        else if (riskTier === "MEDIUM") {
-          strategy = "SNOWBALL";
-          recommended_payment = Math.min(
-            Number((balance * 0.8).toFixed(2)),
-            total_debt
-          );
-        }
+    if (riskTier === "HIGH") {
 
-        else if (riskTier === "LOW") {
-          strategy = "AVALANCHE";
-          recommended_payment = Math.min(
-            Number((balance * 0.8).toFixed(2)),
-            total_debt
-          );
-        }
+      strategy = "MINIMUM_ONLY";
+      recommended_payment = total_installment;
 
-        else {
-          return { error: "risk_tier ไม่ถูกต้อง" };
-        }
+    }
 
-      } else {
-        return { error: "persona ไม่ตรงกับเงื่อนไขจริง" };
-      }
-      break;
+    else if (riskTier === "MEDIUM") {
 
-    case "Can Pay Minimum":
-      if (balance === total_installment) {
-        group = "CAN_PAY_MINIMUM";
-        recommended_payment = total_installment;
-      } else {
-        return { error: "persona ไม่ตรงกับเงื่อนไขจริง" };
-      }
-      break;
+      strategy = "SNOWBALL";
+      recommended_payment = Math.min(balance * 0.8, total_debt);
 
-    case "Loan Rollover":
-      if (balance < total_installment) {
-        group = "LOAN_ROLLOVER";
-        recommended_payment = total_installment;
-      } else {
-        return { error: "persona ไม่ตรงกับเงื่อนไขจริง" };
-      }
-      break;
+    }
 
-    default:
-      return { error: "persona ไม่ถูกต้อง" };
+    else {
+
+      strategy = "AVALANCHE";
+      recommended_payment = Math.min(balance * 0.8, total_debt);
+
+    }
+
+  }
+
+  else if (persona === "Can Pay Minimum") {
+
+    group = "CAN_PAY_MINIMUM";
+    recommended_payment = total_installment;
+
+  }
+
+  else if (persona === "Loan Rollover") {
+
+    group = "LOAN_ROLLOVER";
+    recommended_payment = total_installment;
+
   }
 
   const remaining_monthly_cash =
     Number((balance - recommended_payment).toFixed(2));
 
   /* ===============================
-     4) SYSTEM PROMPT
+     4️⃣ SYSTEM PROMPT
   =============================== */
 
-  const systemPrompt = `
-คุณคือ AI ผู้ช่วยผู้หญิงสำหรับวางแผนการเคลียร์หนี้ BNPL สำหรับนักศึกษา
+  const prompt = `
+คุณคือ AI ผู้ช่วยวางแผนการเคลียร์หนี้ BNPL สำหรับนักศึกษา
 
-ข้อมูลจริง:
+ข้อมูลผู้ใช้:
 income = ${income}
 expense = ${expense}
 balance = ${balance}
@@ -160,29 +147,29 @@ DTI = ${dti}%
 persona = ${persona}
 group = ${group}
 strategy = ${strategy}
-recommended_payment = ${recommended_payment}
 
 กฎ:
-- ถ้า I/E ratio ≤ 1 ต้องแนะนำเพิ่มรายได้
+- ถ้า I/E ratio ≤ 1 ให้แนะนำเพิ่มรายได้
 - ห้ามเปลี่ยน group
-- ถ้า strategy เป็น AVALANCHE ให้แนะนำปิดดอกเบี้ยสูงก่อน
-- ถ้า strategy เป็น SNOWBALL ให้แนะนำปิดยอดเล็กก่อน
-- ถ้า strategy เป็น MINIMUM_ONLY ให้แนะนำรักษาสภาพคล่อง
+- ถ้า strategy เป็น AVALANCHE ให้เน้นปิดหนี้ดอกสูงก่อน
+- ถ้า strategy เป็น SNOWBALL ให้เน้นปิดยอดเล็กก่อน
+- ถ้า strategy เป็น MINIMUM_ONLY ให้เน้นรักษาสภาพคล่อง
 
 ตอบ JSON เท่านั้น
+
 {
-  "financial_status": "...",
-  "group": "${group}",
-  "strategy": "${strategy}",
-  "actions": [อธิบายละเอียด],
-  "recommended_payment": ${recommended_payment},
-  "remaining_monthly_cash": ${remaining_monthly_cash},
-  "benefits": ["...", "...", "..."]
+ "financial_status": "...",
+ "group": "${group}",
+ "strategy": "${strategy}",
+ "actions": ["...", "..."],
+ "recommended_payment": ${recommended_payment},
+ "remaining_monthly_cash": ${remaining_monthly_cash},
+ "benefits": ["...", "..."]
 }
 `;
 
   /* ===============================
-     5) CALL GEMINI
+     5️⃣ CALL GEMINI
   =============================== */
 
   try {
@@ -190,7 +177,7 @@ recommended_payment = ${recommended_payment}
     const response = await axios.post(
       "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
       {
-        contents: [{ parts: [{ text: systemPrompt }] }],
+        contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.2,
           responseMimeType: "application/json",
@@ -207,27 +194,38 @@ recommended_payment = ${recommended_payment}
     const text =
       response.data.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    if (!text) return { error: "AI ไม่ส่งข้อมูลกลับมา" };
+    if (!text) {
+      return { error: "AI ไม่ส่งข้อมูลกลับมา" };
+    }
 
     const parsed = JSON.parse(text);
 
     if (ie_ratio <= 1) {
+
       parsed.actions = parsed.actions || [];
+
       parsed.actions.push(
         "ควรพิจารณาหาแหล่งรายได้เพิ่มเติมเพื่อให้ I/E ratio มากกว่า 1"
       );
+
     }
 
     return parsed;
 
-  } catch (error) {
+  }
 
-    console.error(error.response?.data || error.message);
+  catch (error) {
+
+    console.error("Gemini API Error:",
+      error.response?.data || error.message
+    );
 
     return {
-      error: "ไม่สามารถเชื่อมต่อ AI ได้ กรุณาลองใหม่อีกครั้งค่ะ",
+      error: "ไม่สามารถเชื่อมต่อ AI ได้ กรุณาลองใหม่อีกครั้ง"
     };
+
   }
+
 }
 
 module.exports = { generateFinancialAdvice };
