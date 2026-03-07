@@ -21,6 +21,8 @@ async function verifyUser(req) {
 
   const decodedToken = await admin.auth().verifyIdToken(token);
 
+  console.log("🔑 Decoded Token UID:", decodedToken.uid);
+
   return decodedToken.uid;
 }
 
@@ -62,7 +64,7 @@ router.post("/generate", async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    const userData = userDoc.data();
+    const userData = userDoc.data() || {};
 
     console.log("✅ User data loaded");
 
@@ -80,8 +82,8 @@ router.post("/generate", async (req, res) => {
     const dti =
       income > 0 ? Number((totalInstallment / income).toFixed(2)) : 0;
 
-    console.log("IE Ratio:", ie_ratio);
-    console.log("DTI:", dti);
+    console.log("📊 IE Ratio:", ie_ratio);
+    console.log("📊 DTI:", dti);
 
     /* =============================== */
     /* 4️⃣ GENERATE AI */
@@ -93,7 +95,7 @@ router.post("/generate", async (req, res) => {
       ...userData,
       ie_ratio,
       dti
-    });
+    }) || {};
 
     console.log("AI RAW RESPONSE:", advice);
 
@@ -129,34 +131,36 @@ router.post("/generate", async (req, res) => {
 
     console.log("💾 Saving recommendation...");
 
-    await db.collection("recommendation").add({
+    await db
+      .collection("recommendation")
+      .doc(uid)
+      .collection("history")
+      .add({
 
-      userId: uid,
+        income,
+        expense,
 
-      income,
-      expense,
+        balance: userData.balance || 0,
+        total_debt: userData.total_debt || 0,
+        total_installment: totalInstallment,
 
-      balance: userData.balance || 0,
-      total_debt: userData.total_debt || 0,
-      total_installment: totalInstallment,
+        ie_ratio,
+        dti,
 
-      ie_ratio,
-      dti,
+        persona: userData.persona || "unknown",
 
-      persona: userData.persona || "unknown",
+        financial_status,
 
-      financial_status,
+        group,
+        strategy,
 
-      group,
-      strategy,
+        recommended_payment,
+        remaining_monthly_cash,
 
-      recommended_payment,
-      remaining_monthly_cash,
+        actions,
+        benefits,
 
-      actions,
-      benefits,
-
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
 
     });
 
