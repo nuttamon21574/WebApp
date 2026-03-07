@@ -1,30 +1,38 @@
-const { spawn } = require("child_process")
-const path = require("path")
+const { spawn } = require("child_process");
+const path = require("path");
 
-function runRiskModel(data){
+async function runRiskModel(input) {
 
-    return new Promise((resolve,reject)=>{
+  return new Promise((resolve, reject) => {
 
-        const script = path.join(__dirname,"../ml/predict.py")
+    const script = path.join(__dirname, "../ml/predict.py");
 
-        const py = spawn("python",[script, JSON.stringify(data)])
+    const py = spawn("python", [
+      script,
+      JSON.stringify(input)
+    ]);
 
-        let output = ""
+    let output = "";
 
-        py.stdout.on("data",(data)=>{
-            output += data.toString()
-        })
+    py.stdout.on("data", (data) => {
+      output += data.toString();
+    });
 
-        py.stderr.on("data",(err)=>{
-            console.error(err.toString())
-        })
+    py.stderr.on("data", (data) => {
+      console.error("Python error:", data.toString());
+    });
 
-        py.on("close",()=>{
-            resolve(JSON.parse(output))
-        })
+    py.on("close", () => {
+      try {
+        const parsed = JSON.parse(output);
+        resolve(parsed);
+      } catch (err) {
+        reject(err);
+      }
+    });
 
-    })
+  });
 
 }
 
-module.exports = { runRiskModel }
+module.exports = { runRiskModel };
