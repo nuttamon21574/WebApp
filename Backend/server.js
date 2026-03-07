@@ -69,11 +69,17 @@ const uploadRoute = require("./routes/upload");
 const calculateRoute = require("./routes/calculate");
 const personaRoute = require("./routes/persona");
 const aiRoute = require("./routes/ai");
+<<<<<<< HEAD
+=======
+const mlRoutes = require("./routes/ml")
+>>>>>>> 4c6887c8c9f188a46de6e66944ea673981707701
 
 app.use("/api", uploadRoute);
 app.use("/api/calculate", calculateRoute);
 app.use("/api/persona", personaRoute);
 app.use("/api/ai", aiRoute);
+
+console.log("Routes loaded ✅");
 
 console.log("Routes loaded ✅");
 
