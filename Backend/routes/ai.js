@@ -106,77 +106,35 @@ router.post("/generate", async (req, res) => {
     }
 
     /* =============================== */
-/* 5️⃣ SAFE VALUES */
-/* =============================== */
-
-const financial_status = advice.financial_status || "";
-
-const group = advice.group || "UNKNOWN";
-const strategy = advice.strategy || "NONE";
-
-const recommended_payment = advice.recommended_payment || 0;
-const remaining_monthly_cash = advice.remaining_monthly_cash || 0;
-
-/* ===== ACTIONS -> LONG SENTENCE ===== */
-
-let actions = advice.actions || [];
-
-let actions_text = "";
-
-if (Array.isArray(actions) && actions.length > 0) {
-  actions_text = actions.join(" จากนั้น ");
-}
-
-/* ===== BENEFITS ===== */
-
-const benefits = advice.benefits || [];
-
-console.log("📊 RESULT:");
-console.log("Financial Status:", financial_status);
-console.log("Group:", group);
-console.log("Strategy:", strategy);
-console.log("Recommended Payment:", recommended_payment);
-
-    /* =============================== */
-    /* 6️⃣ SAVE HISTORY */
+    /* 5️⃣ SAFE VALUES */
     /* =============================== */
 
-    console.log("💾 Saving recommendation...");
+    const financial_status = advice.financial_status || "";
+
+    const group = advice.group || "UNKNOWN";
+    const strategy = advice.strategy || "NONE";
+
+    const recommended_payment = advice.recommended_payment || 0;
+    const remaining_monthly_cash = advice.remaining_monthly_cash || 0;
+
+    const actions = advice.actions || [];
+    const benefits = advice.benefits || [];
+
+    console.log("📊 RESULT:");
+    console.log("Group:", group);
+    console.log("Strategy:", strategy);
+    console.log("Recommended Payment:", recommended_payment);
+
+    /* =============================== */
+    /* CREATE USER RECOMMENDATION DOC */
+    /* =============================== */
 
     await db
-      .collection("recommendation")
-      .doc(uid)
-      .collection("history")
-      .add({
-
-        income,
-        expense,
-
-        balance: userData.balance || 0,
-        total_debt: userData.total_debt || 0,
-        total_installment: totalInstallment,
-
-        ie_ratio,
-        dti,
-
-        persona: userData.persona || "unknown",
-
-        financial_status,
-
-        group,
-        strategy,
-
-        recommended_payment,
-        remaining_monthly_cash,
-
-        actions: actions_text,   // ⭐ เก็บเป็นประโยคยาว
-        benefits,
-
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-
-    });
-
-    console.log("actions_text:", actions_text);
+    .collection("recommendation")
+    .doc(uid)
+    .set({
+      userId: uid
+    }, { merge: true });
     /* =============================== */
     /* 6️⃣ SAVE HISTORY */
     /* =============================== */
@@ -223,6 +181,8 @@ console.log("Recommended Payment:", recommended_payment);
     console.log("📊 Updating user snapshot...");
 
     await db.collection("users").doc(uid).set({
+
+      last_financial_status: financial_status,
 
       last_group: group,
       last_strategy: strategy,

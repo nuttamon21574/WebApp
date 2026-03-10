@@ -3,11 +3,24 @@ const axios = require("axios");
 async function generateFinancialAdvice(user) {
 
   /* ===============================
+     FALLBACK RESPONSE (กัน undefined)
+  =============================== */
+
+  const fallbackResponse = {
+    financial_status: "ไม่สามารถวิเคราะห์คำแนะนำทางการเงินได้",
+    group: "UNKNOWN",
+    strategy: "NONE",
+    actions: [],
+    recommended_payment: 0,
+    remaining_monthly_cash: 0,
+    benefits: []
+  };
+
+  /* ===============================
      1️⃣ REQUIRED FIELD CHECK
   =============================== */
 
   const requiredFields = [
-
     "income",
     "expense",
 
@@ -37,7 +50,7 @@ async function generateFinancialAdvice(user) {
 
   for (const field of requiredFields) {
     if (user[field] === undefined || user[field] === null) {
-      return { error: `ข้อมูลไม่ครบ: ${field}` };
+      return fallbackResponse;
     }
   }
 
@@ -47,15 +60,13 @@ async function generateFinancialAdvice(user) {
 
   const income = Number(user.income);
   const expense = Number(user.expense);
-
-  if (income <= 0) {
-    return { error: "รายได้ต้องมากกว่า 0" };
-  }
-
   const balance = Number(user.balance);
-
   const total_debt = Number(user.total_debt);
   const total_installment = Number(user.total_installment);
+
+  if (income <= 0) {
+    return fallbackResponse;
+  }
 
   const ie_ratio =
     expense === 0 ? 0 : Number((income / expense).toFixed(2));
@@ -64,7 +75,7 @@ async function generateFinancialAdvice(user) {
     Number(((total_installment / income) * 100).toFixed(2));
 
   if (total_debt === 0) {
-    return { error: "ไม่พบยอดหนี้ BNPL" };
+    return fallbackResponse;
   }
 
   /* ===============================
@@ -151,9 +162,6 @@ strategy = ${strategy}
 กฎ:
 - ถ้า I/E ratio ≤ 1 ให้แนะนำเพิ่มรายได้
 - ห้ามเปลี่ยน group
-- ถ้า strategy เป็น AVALANCHE ให้เน้นปิดหนี้ดอกสูงก่อน
-- ถ้า strategy เป็น SNOWBALL ให้เน้นปิดยอดเล็กก่อน
-- ถ้า strategy เป็น MINIMUM_ONLY ให้เน้นรักษาสภาพคล่อง
 
 ตอบ JSON เท่านั้น
 
@@ -173,6 +181,8 @@ strategy = ${strategy}
   =============================== */
 
   try {
+
+    console.log("🤖 Generating financial advice...");
 
     const response = await axios.post(
       "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
@@ -195,20 +205,40 @@ strategy = ${strategy}
       response.data.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!text) {
-      return { error: "AI ไม่ส่งข้อมูลกลับมา" };
+      return fallbackResponse;
     }
 
-    const parsed = JSON.parse(text);
+    let parsed;
+
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      return fallbackResponse;
+    }
+
+    /* ===============================
+       6️⃣ SAFETY FIX
+    =============================== */
+
+    parsed.group = parsed.group || group || "UNKNOWN";
+    parsed.strategy = parsed.strategy || strategy || "NONE";
+
+    parsed.actions = parsed.actions || [];
+    parsed.benefits = parsed.benefits || [];
+
+    parsed.recommended_payment =
+      parsed.recommended_payment ?? recommended_payment;
+
+    parsed.remaining_monthly_cash =
+      parsed.remaining_monthly_cash ?? remaining_monthly_cash;
 
     if (ie_ratio <= 1) {
-
-      parsed.actions = parsed.actions || [];
-
       parsed.actions.push(
         "ควรพิจารณาหาแหล่งรายได้เพิ่มเติมเพื่อให้ I/E ratio มากกว่า 1"
       );
-
     }
+
+    console.log("AI RESULT:", parsed);
 
     return parsed;
 
@@ -216,13 +246,12 @@ strategy = ${strategy}
 
   catch (error) {
 
-    console.error("Gemini API Error:",
+    console.error(
+      "Gemini API Error:",
       error.response?.data || error.message
     );
 
-    return {
-      error: "ไม่สามารถเชื่อมต่อ AI ได้ กรุณาลองใหม่อีกครั้ง"
-    };
+    return fallbackResponse;
 
   }
 

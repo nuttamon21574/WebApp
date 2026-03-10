@@ -70,9 +70,11 @@ console.log("AI RESULT:", advice);
 
 if (!advice.error) {
 
-  await db.collection("recommendation").add({
+  await db.collection("recommendation").doc(uid).collection("history").add({
 
     userId: uid,
+
+    financial_status: advice.financial_status || "Unknown",
 
     group: advice.group,
     strategy: advice.strategy,

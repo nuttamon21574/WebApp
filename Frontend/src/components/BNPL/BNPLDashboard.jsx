@@ -15,40 +15,9 @@ export default function BNPLDashboard({
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [riskTier, setRiskTier] = useState("null");
+  const [riskTier, setRiskTier] = useState(null); // ✅ FIX
 
   const isTotal = activeTab === "Total BNPL";
-
-  /* ============================= */
-  /* GENERATE AI FUNCTION */
-  /* ============================= */
-
-  const generateAI = async () => {
-    try {
-
-      const user = auth.currentUser;
-      if (!user) return;
-
-      console.log("🚀 Start AI Generation");
-
-      const token = await user.getIdToken();
-
-      const res = await fetch("http://localhost:5000/api/ai/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const result = await res.json();
-
-      console.log("🤖 AI RESULT:", result);
-
-    } catch (err) {
-      console.error("AI Error:", err);
-    }
-  };
 
   useEffect(() => {
     onShowAdd?.(true);
@@ -61,6 +30,7 @@ export default function BNPLDashboard({
 
       if (!user) {
         setData(null);
+        setRiskTier(null); // ✅ reset
         setLoading(false);
         return;
       }
@@ -102,26 +72,11 @@ export default function BNPLDashboard({
         const userDoc = await getDoc(doc(db, "users", user.uid));
         const userData = userDoc.exists() ? userDoc.data() : {};
 
-        setRiskTier(userData.risk_tier || "null");
-
-        /* ============================= */
-        /* CHECK DATA BEFORE GENERATE AI */
-        /* ============================= */
-
-        if (
-          userData.income &&
-          userData.expense &&
-          userData.total_debt
-        ) {
-
-          console.log("📊 User data complete → Generate AI");
-
-          await generateAI();
-
+        // ✅ LOAD RISK TIER (เฉพาะ user ที่ can_prepay เท่านั้น)
+        if (userData?.can_prepay) {
+          setRiskTier(userData?.risk_tier ?? null);
         } else {
-
-          console.log("⚠️ User data incomplete → Skip AI");
-
+          setRiskTier(null); // full clearance
         }
 
         /* ============================= */

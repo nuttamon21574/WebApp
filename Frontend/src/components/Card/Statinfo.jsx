@@ -63,12 +63,12 @@ export default function Statinfo() {
     <div className="space-y-8">
 
       {/* Status */}
-      <div className="bg-gradient-to-br from-purple-300 to-white rounded-3xl p-14 shadow-xl">
+      <div className="bg-gradient-to-br from-purple-300 to-white rounded-3xl p-8 md:p-12 shadow-xl">
         <h2 className="text-xl font-semibold">
           Status
         </h2>
 
-        <div className="pb-10 pt-5">
+        <div className="pb-6 pt-4">
           <p className="text-black/80">
             {loading ? "Loading..." : data?.financial_status || "-"}
           </p>
@@ -78,18 +78,18 @@ export default function Statinfo() {
       <div className="grid md:grid-cols-3 gap-8">
 
         {/* AI Animation */}
-        <div className="rounded-l flex items-center justify-center">
+        <div className="flex items-center justify-center overflow-hidden">
           <DotLottieReact
             src="https://lottie.host/44c310e7-4de4-45dc-a3dc-7df7ab9e7210/eMFuITyaLp.lottie"
             loop
             autoplay
-            style={{ width: "480px", height: "450px" }}
+            className="w-full max-w-[280px] sm:max-w-[340px] md:max-w-[400px] lg:max-w-[450px] h-auto"
           />
         </div>
 
         <div className="md:col-span-2 space-y-6">
 
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
 
             {/* Recommended Payment */}
             <div className="bg-white rounded-3xl shadow-xl p-6">
@@ -122,12 +122,16 @@ export default function Statinfo() {
           {/* Actions */}
           <div className="bg-white rounded-3xl shadow-xl p-6">
             <h3 className="font-semibold text-lg mb-2">
-              Action
+              Actions
             </h3>
 
-            <p className="text-sm text-gray-700">
-              {data?.actions || "-"}
-            </p>
+            <ul className="list-disc list-inside space-y-1 text-sm">
+              {data?.actions?.length
+                ? data.actions.map((item, index) => (
+                    <li key={index}>{item}</li>
+                  ))
+                : <li>-</li>}
+            </ul>
           </div>
 
           {/* Benefits */}

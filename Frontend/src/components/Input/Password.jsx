@@ -36,19 +36,30 @@ export default function PasswordInput({ length = 8, onChange }) {
     }
   };
 
-  return (
-    <div className="flex gap-2 mb-4">
-      {values.map((v, i) => (
-        <input
-          key={i}
-          type="password"
-          inputMode="numeric"
-          maxLength={1}
-          value={v}
-          onChange={(e) => handleChange(e, i)}
-          className="w-10 h-10 text-center border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-        />
-      ))}
-    </div>
-  );
+return (
+  <div className="flex gap-1 mb-8 w-full">
+    {values.map((v, i) => (
+      <input
+        key={i}
+        type="password"
+        inputMode="numeric"
+        maxLength={1}
+        value={v}
+        onChange={(e) => handleChange(e, i)}
+        className="flex-1
+        min-w-[20px]
+        max-w-[200px]
+        h-10
+        text-xl
+        text-center
+        border-2
+        border-gray-400
+        rounded-xl
+        focus:outline-none
+        focus:ring-2
+        focus:ring-purple-500"
+      />
+    ))}
+  </div>
+);
 }
