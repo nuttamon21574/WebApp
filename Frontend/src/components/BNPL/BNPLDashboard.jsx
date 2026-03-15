@@ -215,7 +215,7 @@ export default function BNPLDashboard({
 
           <div className="bg-white rounded-2xl shadow-md p-8 text-center h-[170px] flex flex-col justify-center border border-gray-100">
             <p className="text-sm text-gray-500 mb-3">
-              Outstanding Balance
+              Outstanding Debt
             </p>
             <p className="text-3xl font-semibold text-purple-900">
               {d.outstandingBalance ?? "-"}

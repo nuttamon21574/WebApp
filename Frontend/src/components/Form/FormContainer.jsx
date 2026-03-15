@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom"
 import { useState, useEffect } from "react"
+
 import {
   doc,
   getDoc,
@@ -9,6 +10,7 @@ import { auth, db } from "@/firebase"
 
 import FormRow from "./FormRow"
 import SaveButton from "../Button/SaveButton"
+import IncreaseIncomeCard from "../Card/IncomeAdviceCard"
 
 export default function FormContainer() {
   const navigate = useNavigate()
@@ -23,7 +25,10 @@ export default function FormContainer() {
     lazpaylater_limit: "",
   })
 
+  const [showCard, setShowCard] = useState(false)
+
   /* ---------------- โหลดข้อมูลเดิม ---------------- */
+
   useEffect(() => {
     const fetchUserData = async () => {
       const user = auth.currentUser
@@ -55,6 +60,7 @@ export default function FormContainer() {
   }, [])
 
   /* ---------------- เช็คกรอกครบ ---------------- */
+
   const isComplete =
     form.gender &&
     form.age !== "" &&
@@ -65,8 +71,11 @@ export default function FormContainer() {
     form.lazpaylater_limit !== ""
 
   /* ---------------- Save / Update ---------------- */
+
   const handleSave = async () => {
+
     const user = auth.currentUser
+
     if (!user) {
       alert("Please login first")
       return
@@ -78,6 +87,7 @@ export default function FormContainer() {
     }
 
     try {
+
       const income = Number(form.income)
       const expense = Number(form.expense)
 
@@ -86,7 +96,23 @@ export default function FormContainer() {
         return
       }
 
-      const balance = income - expense
+      if (expense === 0) {
+        alert("Expense cannot be 0")
+        return
+      }
+
+      /* --------- คำนวณ I/E --------- */
+
+      const ieRatio = income / expense
+
+      /* --------- ถ้า I/E < 1 แสดง popup --------- */
+
+      if (ieRatio < 1) {
+        setShowCard(true)
+        return
+      }
+
+      /* --------- บันทึกข้อมูล --------- */
 
       await setDoc(
         doc(db, "users", user.uid),
@@ -95,13 +121,14 @@ export default function FormContainer() {
           age: Number(form.age),
           year: form.year,
 
-          income: Number(form.income),
-          expense: Number(form.expense),
+          income: income,
+          expense: expense,
+
           spaylater_limit: Number(form.spaylater_limit),
           lazpaylater_limit: Number(form.lazpaylater_limit),
 
-          balance: Number(form.income) - Number(form.expense),
-          risk_tier: null, // รอคำนวณใน backend
+          balance: income - expense,
+          risk_tier: null,
 
           updatedAt: new Date(),
         },
@@ -109,6 +136,7 @@ export default function FormContainer() {
       )
 
       navigate("/BNPL")
+
     } catch (err) {
       console.error(err)
       alert("Failed to save data")
@@ -117,11 +145,13 @@ export default function FormContainer() {
 
   return (
     <div>
+
       <h2 className="font-semibold mb-6 text-[#2B1166]">
         Fill your information
       </h2>
 
       <div className="space-y-4">
+
         <FormRow label="Gender">
           <select
             className="rounded-xl px-4 py-2 bg-white w-full"
@@ -209,6 +239,7 @@ export default function FormContainer() {
             }
           />
         </FormRow>
+
       </div>
 
       <div className="grid place-items-center h-full mt-10">
@@ -217,6 +248,16 @@ export default function FormContainer() {
           onClick={handleSave}
         />
       </div>
+
+      {/* -------- Popup -------- */}
+
+      {showCard && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">
+          <IncreaseIncomeCard onClose={() => setShowCard(false)}
+          />
+        </div>
+      )}
+
     </div>
   )
 }

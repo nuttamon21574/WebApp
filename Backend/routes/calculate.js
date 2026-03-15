@@ -300,6 +300,16 @@ router.post("/calculate-and-save", async (req, res) => {
       monthlyIncome > 0
         ? Number((totalMonthlyAll / monthlyIncome).toFixed(4))
         : 0;
+    /* ============================= */
+    /* INCOME / EXPENSE RATIO */
+    /* ============================= */
+
+    const ieRatio =
+      monthlyIncome > 0
+        ? Number((monthlyIncome / totalMonthlyAll).toFixed(4))
+        : 0;
+
+    console.log("IE Ratio:", ieRatio);
 
     /* ============================= */
     /* DEBUG (optional) */
@@ -350,7 +360,8 @@ router.post("/calculate-and-save", async (req, res) => {
 
     return res.json({
       success: true,
-      credit_utilization: creditUtilization,
+      ie_ratio: ieRatio,
+      credit_utilization: creditUtilization
     });
 
   } catch (err) {

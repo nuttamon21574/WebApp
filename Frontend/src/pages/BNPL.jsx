@@ -19,7 +19,7 @@ export default function BNPL() {
   const location = useLocation();
 
   // ===== รับค่าจาก navigate state =====
-  const startMode = location.state?.startMode || "empty";
+  const startMode = location.state?.startMode || "pdf";
   const startProvider = location.state?.provider || "SPayLater";
 
   const [mode, setMode] = useState(startMode);

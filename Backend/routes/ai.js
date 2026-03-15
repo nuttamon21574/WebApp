@@ -91,8 +91,11 @@ router.post("/generate", async (req, res) => {
 
     console.log("🤖 Generating financial advice...");
 
+    console.log("User age:", userData.age);
+    
     const advice = await generateFinancialAdvice({
       ...userData,
+      age: userData.age || 0,
       ie_ratio,
       dti
     }) || {};

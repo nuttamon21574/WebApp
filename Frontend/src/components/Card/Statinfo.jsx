@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import {
   collection,
   query,
@@ -9,6 +8,11 @@ import {
 } from "firebase/firestore";
 import { db, auth } from "@/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+
+import fullClearanceImg from "@/assets/image/FullClearance.png";
+import loanImg from "@/assets/image/Loan.png";
+import payminImg from "@/assets/image/Paymin.png";
+import canpreImg from "@/assets/image/Canpre.png";
 
 export default function Statinfo() {
 
@@ -59,6 +63,15 @@ export default function Statinfo() {
 
   };
 
+  const personaImages = {
+    CAN_PAY_MINIMUM: payminImg,
+    CAN_PREPAY: canpreImg,
+    FULL_CLEARANCE: fullClearanceImg,
+    LOAN_ROLLOVER: loanImg
+  };
+
+  const personaImage = data ? personaImages[data.group] : null;
+
   return (
     <div className="space-y-8">
 
@@ -77,14 +90,17 @@ export default function Statinfo() {
 
       <div className="grid md:grid-cols-3 gap-8">
 
-        {/* AI Animation */}
+        {/* Persona Image */}
         <div className="flex items-center justify-center overflow-hidden">
-          <DotLottieReact
-            src="https://lottie.host/44c310e7-4de4-45dc-a3dc-7df7ab9e7210/eMFuITyaLp.lottie"
-            loop
-            autoplay
-            className="w-full max-w-[280px] sm:max-w-[340px] md:max-w-[400px] lg:max-w-[450px] h-auto"
-          />
+
+          {personaImage && (
+            <img
+              src={personaImage}
+              alt={data?.group}
+              className="w-full max-w-[900px] object-contain"
+            />
+          )}
+
         </div>
 
         <div className="md:col-span-2 space-y-6">

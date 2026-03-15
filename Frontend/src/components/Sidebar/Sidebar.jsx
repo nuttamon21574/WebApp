@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
+import logoINC from "../../assets/image/INC_Logo.png";
+//import logoKMUTT from "../../assets/image/KMUTT_CI_Semi_Logo-normal.png";
 
 export default function Sidebar() {
   const location = useLocation();
@@ -124,13 +126,29 @@ export default function Sidebar() {
 
           {/* Logo */}
           <div className="flex justify-center mb-4">
-            <DotLottieReact
-              src="https://lottie.host/8d71106e-ae93-486d-bd8b-be5fe8f8edf5/QSxFcf84bV.lottie"
-              loop
-              autoplay
-              style={{ width: 100, height: 100 }}
+            <img
+              src={logoINC}
+              alt="logo"
+              className="w-[140px] h-[140px] object-contain "
             />
           </div>
+          
+          {/*<div className="flex justify-center items-center gap-4 mt-4 mb-6">
+
+            <img
+              src={logoINC}
+              alt="INC Logo"
+              className="w-[100px] h-[100px] object-contain gap-4 bg-white p-4 rounded-full shadow-lg"
+            />
+
+            <img
+              src={logoKMUTT}
+              alt="KMUTT Logo"
+              className="w-[100px] h-[100px] object-contain gap-4 bg-white p-4 rounded-full shadow-lg"
+            />
+
+          </div>*/}
+
 
           {/* Menu */}
           <ul className="flex flex-col gap-3 text-sm md:text-base font-medium">
