@@ -83,5 +83,8 @@ app.listen(PORT, () => {
 console.log("=================================");
 console.log(`🚀 Server running on port ${PORT}`);
 console.log(`AI endpoint → http://localhost:${PORT}/api/ai/generate`);
+console.log("FB_PROJECT_ID:", process.env.FB_PROJECT_ID);
+console.log("CLIENT_EMAIL:", process.env.FIREBASE_CLIENT_EMAIL);
+console.log("PRIVATE_KEY:", process.env.FIREBASE_PRIVATE_KEY ? "OK" : "MISSING");
 console.log("=================================");
 });
