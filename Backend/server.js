@@ -47,7 +47,7 @@ const app = express();
 app.use(cors({
 origin: [
 "http://localhost:5173",
-"https://web-app-five-virid.vercel.app/"
+"https://web-app-five-virid.vercel.app"
 ],
 methods: ["GET", "POST"],
 }));
