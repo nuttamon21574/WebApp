@@ -27,7 +27,7 @@ console.log("Using Production Firebase Credentials");
 credential = admin.credential.cert({
 projectId: process.env.FB_PROJECT_ID,
 clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\n/g, "\n"),
 });
 
 } else {
@@ -44,10 +44,12 @@ admin.initializeApp({ credential });
 
 const app = express();
 
-
-app.use(cors({ origin: "*" }))
-
-
+app.use(cors({
+origin: [
+"http://localhost:5173",
+],
+methods: ["GET", "POST"],
+}));
 
 app.use(express.json());
 app.use(fileUpload());
@@ -83,8 +85,5 @@ app.listen(PORT, () => {
 console.log("=================================");
 console.log(`🚀 Server running on port ${PORT}`);
 console.log(`AI endpoint → http://localhost:${PORT}/api/ai/generate`);
-console.log("FB_PROJECT_ID:", process.env.FB_PROJECT_ID);
-console.log("CLIENT_EMAIL:", process.env.FIREBASE_CLIENT_EMAIL);
-console.log("PRIVATE_KEY:", process.env.FIREBASE_PRIVATE_KEY ? "OK" : "MISSING");
 console.log("=================================");
 });

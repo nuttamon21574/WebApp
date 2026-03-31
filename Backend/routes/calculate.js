@@ -9,29 +9,16 @@ const db = admin.firestore();
 /* ============================= */
 
 async function verifyUser(req) {
-  try {
-    const authHeader = req.headers.authorization;
+  const authHeader = req.headers.authorization;
 
-    console.log("AUTH HEADER:", authHeader);
-
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      throw new Error("No token provided");
-    }
-
-    const token = authHeader.split("Bearer ")[1];
-
-    console.log("TOKEN RECEIVED:", token ? "YES" : "NO");
-
-    const decodedToken = await admin.auth().verifyIdToken(token);
-
-    console.log("DECODED UID:", decodedToken.uid);
-
-    return decodedToken;
-
-  } catch (error) {
-    console.error("VERIFY TOKEN ERROR:", error.message);
-    throw error;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    throw new Error("No token provided");
   }
+
+  const token = authHeader.split("Bearer ")[1];
+  const decodedToken = await admin.auth().verifyIdToken(token);
+
+  return decodedToken.uid;
 }
 
 /* ============================= */
@@ -165,12 +152,7 @@ function calculateInstallments(item) {
 
 router.post("/calculate-and-save", async (req, res) => {
   try {
-    const decoded = await verifyUser(req);
-    const uid = decoded.uid;
-
-    console.log("USER UID:", uid);
-
-    
+    const uid = await verifyUser(req);
     const { provider, items } = req.body;
 
     if (!provider || !items || !Array.isArray(items) || items.length === 0) {
