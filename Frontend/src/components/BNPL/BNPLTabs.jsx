@@ -8,7 +8,7 @@ export default function BNPLTabs({ activeTab, onChange }) {
         {tabs.map((tab) => (
           <button
             key={tab}
-            onClick={() => onChange(tab)}
+            onClick={() => onChangeTab(tab)}
             className={`px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-medium transition whitespace-nowrap
               ${
                 activeTab === tab

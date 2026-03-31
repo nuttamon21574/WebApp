@@ -1,273 +1,302 @@
 import { useEffect, useState } from "react";
-import BNPLTabs from "./BNPLTabs";
-import BNPLDetailRow from "./BNPLDetailRow";
-import RiskTier from "../Card/Risk_tier.jsx";
+
+import {
+  BarChart, Bar, XAxis, YAxis, ResponsiveContainer,
+  Tooltip, Legend, LabelList
+} from "recharts";
 
 import { auth, db } from "@/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs } from "firebase/firestore";
 
-export default function BNPLDashboard({
-  onShowAdd,
-  activeTab,
-  onChangeTab,
-}) {
+import shopeeLogo from "@/assets/image/shopee.png";
+import lazadaLogo from "@/assets/image/lazada.png";
+
+export default function BNPLDashboard() {
 
   const [data, setData] = useState(null);
+  const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [riskTier, setRiskTier] = useState(null); // ✅ FIX
 
-  const isTotal = activeTab === "Total BNPL";
-
-  useEffect(() => {
-    onShowAdd?.(true);
-    return () => onShowAdd?.(false);
-  }, [onShowAdd]);
+  const [platformFilter, setPlatformFilter] = useState("All");
 
   useEffect(() => {
-
     const unsub = onAuthStateChanged(auth, async (user) => {
+      if (!user) return;
 
-      if (!user) {
-        setData(null);
-        setRiskTier(null); // ✅ reset
-        setLoading(false);
-        return;
-      }
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      const userData = userDoc.data();
 
-      try {
+      const providersSnap = await getDocs(
+        collection(db, "bnplDebt", user.uid, "providers")
+      );
 
-        const getProviderSummary = async (providerName) => {
+      let providers = [];
+      let totalOutstanding = 0;
+      let allTx = [];
 
-          const ref = doc(
-            db,
-            "bnplDebt",
-            user.uid,
-            "providers",
-            providerName
+      for (const docSnap of providersSnap.docs) {
+        const d = docSnap.data();
+        const providerName = d.bnplProvider || docSnap.id;
+        const amount = d.provider_outstanding || 0;
+
+        providers.push({
+          name: providerName,
+          outstanding: amount
+        });
+
+        totalOutstanding += amount;
+
+        const entriesSnap = await getDocs(
+          collection(db, "bnplDebt", user.uid, "providers", docSnap.id, "entries")
+        );
+
+        entriesSnap.forEach((entryDoc) => {
+          const e = entryDoc.data();
+
+          const created = e.createdAt?.toDate?.() || new Date();
+
+          const totalTerms = e.selected_terms || 1;
+          const remaining = e.remaining_installments ?? totalTerms;
+
+          const safeRemaining = Math.max(0, Math.min(remaining, totalTerms));
+
+          const currentInstallment =
+            safeRemaining === 0
+              ? totalTerms
+              : totalTerms - safeRemaining + 1;
+
+          const dueDate = new Date(
+            created.getTime() +
+              (currentInstallment - 1) * 30 * 24 * 60 * 60 * 1000
           );
 
-          const snap = await getDoc(ref);
+          const today = new Date();
+          let status = "Pending";
 
-          if (!snap.exists()) return null;
+          if (safeRemaining === 0) status = "Paid";
+          else if (today > dueDate) status = "Overdue";
 
-          const d = snap.data();
-          const isSpay = providerName === "SPayLater";
-
-          return {
-            outstandingBalance: d.provider_outstanding || 0,
-            totalDebt: d.provider_original_debt || 0,
-            totalLimit: isSpay
-              ? user.spaylater_limit || 0
-              : user.lazpaylater_limit || 0,
-            monthlyPayment: d.provider_monthly || 0,
-            installments: d.provider_remaining_installments || 0,
-          };
-        };
-
-        /* ============================= */
-        /* LOAD USER DATA */
-        /* ============================= */
-
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        const userData = userDoc.exists() ? userDoc.data() : {};
-
-        // ✅ LOAD RISK TIER (เฉพาะ user ที่ can_prepay เท่านั้น)
-        if (userData?.can_prepay) {
-          setRiskTier(userData?.risk_tier ?? null);
-        } else {
-          setRiskTier(null); // full clearance
-        }
-
-        /* ============================= */
-        /* PROVIDER DATA */
-        /* ============================= */
-
-        if (!isTotal) {
-
-          const providerData = await getProviderSummary(activeTab);
-
-          if (!providerData) {
-
-            setData(null);
-
-          } else {
-
-            setData({
-              ...providerData,
-              creditUtilization:
-                providerData.totalLimit > 0
-                  ? (
-                      providerData.outstandingBalance /
-                      providerData.totalLimit
-                    ).toFixed(2)
-                  : "-",
-            });
-
-          }
-
-        }
-
-        /* ============================= */
-        /* TOTAL BNPL */
-        /* ============================= */
-
-        if (isTotal) {
-
-          const spayRef = doc(
-            db,
-            "bnplDebt",
-            user.uid,
-            "providers",
-            "SPayLater"
-          );
-
-          const lazRef = doc(
-            db,
-            "bnplDebt",
-            user.uid,
-            "providers",
-            "LazPayLater"
-          );
-
-          const [spaySnap, lazSnap] = await Promise.all([
-            getDoc(spayRef),
-            getDoc(lazRef),
-          ]);
-
-          const spay = spaySnap.exists() ? spaySnap.data() : {};
-          const laz = lazSnap.exists() ? lazSnap.data() : {};
-
-          const totalOutstanding =
-            (spay.provider_outstanding || 0) +
-            (laz.provider_outstanding || 0);
-
-          const totalMonthly =
-            (spay.provider_monthly || 0) +
-            (laz.provider_monthly || 0);
-
-          const totalDebt =
-            (spay.provider_original_debt || 0) +
-            (laz.provider_original_debt || 0);
-
-          const activeLimit =
-            (spay.provider_outstanding > 0
-              ? userData.spaylater_limit || 0
-              : 0) +
-            (laz.provider_outstanding > 0
-              ? userData.lazpaylater_limit || 0
-              : 0);
-
-          const utilization =
-            activeLimit > 0
-              ? (totalOutstanding / activeLimit).toFixed(2)
-              : "-";
-
-          setData({
-            outstandingBalance: totalOutstanding,
-            totalDebt: totalDebt,
-            monthlyPayment: totalMonthly,
-            creditUtilization: utilization,
-            platformCount:
-              (spay.provider_outstanding > 0 ? 1 : 0) +
-              (laz.provider_outstanding > 0 ? 1 : 0),
+          allTx.push({
+            id: entryDoc.id,
+            date: created,
+            platform: providerName,
+            dueDate,
+            amount: e.outstanding_debt || 0,
+            installment: `${currentInstallment}/${totalTerms}`,
+            status
           });
-
-        }
-
-      } catch (err) {
-
-        console.error("Dashboard load error:", err);
-        setData(null);
-
+        });
       }
 
-      setLoading(false);
+      const totalLimit =
+        (userData?.spaylater_limit || 0) +
+        (userData?.lazpaylater_limit || 0);
 
+      setData({
+        providers,
+        outstanding: totalOutstanding,
+        limit: totalLimit,
+        available: totalLimit - totalOutstanding,
+        utilization: userData?.credit_utilization || 0,
+        dti: userData?.installment_to_income || 0
+      });
+
+      allTx.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+      setTransactions(allTx);
+      setLoading(false);
     });
 
+    
+
     return () => unsub();
+  }, []);
 
-  }, [activeTab]);
+  if (loading || !data) return <div className="p-8 text-lg">Loading...</div>;
 
-  if (loading) {
-    return (
-      <div className="p-10 text-center text-gray-500 flex flex-col items-center justify-center min-h-[300px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-900 mb-4"></div>
-        <p>Loading dashboard...</p>
-      </div>
-    );
-  }
+  const providerCount = data.providers.length || 1;
 
-  const d = data || {};
+  const barData = data.providers.map((p) => ({
+    name: p.name,
+    outstanding: p.outstanding,
+    limit: data.limit / providerCount
+  }));
+
+  const getLogo = (name) => {
+    if (name.toLowerCase().includes("spay")) return shopeeLogo;
+    if (name.toLowerCase().includes("laz")) return lazadaLogo;
+    return null;
+  };
+
+  const filteredTx =
+    platformFilter === "All"
+      ? transactions
+      : transactions.filter((tx) =>
+          tx.platform.toLowerCase().includes(platformFilter.toLowerCase())
+        );
 
   return (
-    <div className="bg-white rounded-3xl shadow-xl p-10 w-full h-full flex flex-col gap-8">
+    <div className="p-8 bg-gray-50 min-h-screen text-lg">
 
-      <BNPLTabs activeTab={activeTab} onChange={onChangeTab} />
+      {/* KPI */}
+      <div className="mt-0 grid md:grid-cols-3 gap-6">
+        <div className="bg-white p-5 rounded-2xl shadow">
+          <p className="text-gray-500 text-base">Total Debt</p>
+          <p className="text-3xl font-bold text-purple-700">
+            {data.outstanding.toLocaleString()}
+          </p>
+        </div>
 
-      <div className="flex justify-center w-full">
-        <div
-          className={`grid gap-8 w-full max-w-4xl ${
-            isTotal ? "md:grid-cols-2" : "grid-cols-1"
-          }`}
-        >
+        <div className="bg-white p-5 rounded-2xl shadow">
+          <p className="text-gray-500 text-base">Credit Utilization</p>
+          <p className="text-3xl font-bold text-purple-700">
+            {(data.utilization * 100).toFixed(0)}%
+          </p>
+        </div>
 
-          <div className="bg-white rounded-2xl shadow-md p-8 text-center h-[170px] flex flex-col justify-center border border-gray-100">
-            <p className="text-sm text-gray-500 mb-3">
-              Outstanding Debt
-            </p>
-            <p className="text-3xl font-semibold text-purple-900">
-              {d.outstandingBalance ?? "-"}
-            </p>
-          </div>
-
-          {isTotal && (
-            <RiskTier riskTier={riskTier} />
-          )}
-
+        <div className="bg-white p-5 rounded-2xl shadow">
+          <p className="text-gray-500 text-base">DTI</p>
+          <p className="text-3xl font-bold text-green-600">
+            {(data.dti * 100).toFixed(0)}%
+          </p>
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-y-6 gap-x-16 text-sm border-t border-gray-50 pt-8">
+      {/* MAIN GRID */}
+      <div className="grid md:grid-cols-2 gap-6 mt-6">
 
-        {isTotal ? (
-          <>
-            <BNPLDetailRow
-              label="Credit Utilization"
-              value={
-                d.creditUtilization !== "-"
-                  ? `${d.creditUtilization}`
-                  : "-"
-              }
-            />
+        {/* LEFT = BAR */}
+        <div className="bg-white p-6 rounded-2xl shadow">
+          <h3 className="font-semibold text-lg mb-3">
+            Outstanding vs Limit
+          </h3>
 
-            <BNPLDetailRow
-              label="Monthly Payment"
-              value={d.monthlyPayment ?? "-"}
-            />
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart
+              data={barData}
+              margin={{ top: 30, right: 20, left: 0, bottom: 5 }}
+            >
+              <XAxis dataKey="name" />
+              <YAxis tickFormatter={(v) => `${v / 1000}k`} />
+              <Tooltip />
+              <Legend />
 
-            <BNPLDetailRow
-              label="Platform Count"
-              value={d.platformCount ?? "-"}
-            />
-          </>
-        ) : (
-          <>
-            <BNPLDetailRow
-              label="Monthly Payment"
-              value={d.monthlyPayment ?? "-"}
-            />
+              <Bar dataKey="outstanding" fill="#6D28D9">
+                <LabelList dataKey="outstanding" position="top" />
+              </Bar>
 
-            <BNPLDetailRow
-              label="Installments"
-              value={d.installments ?? "-"}
-            />
-          </>
-        )}
+              <Bar dataKey="limit" fill="#C4B5FD">
+                <LabelList dataKey="limit" position="top" />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+
+          <div className="mt-4 border-t pt-4 text-base">
+            <div className="flex justify-between">
+              <span>Total Used</span>
+              <span className="font-semibold text-purple-700 text-lg">
+                {data.outstanding.toLocaleString()}
+              </span>
+            </div>
+
+            <div className="flex justify-between">
+              <span>Available</span>
+              <span className="font-semibold text-green-600 text-lg">
+                {data.available.toLocaleString()}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT */}
+        <div className="flex flex-col gap-6">
+
+          {/* TABLE */}
+          <div className="bg-white p-6 rounded-2xl shadow">
+            <h3 className="font-semibold text-lg mb-4">
+              Recent Transactions
+            </h3>
+
+            <div className="flex gap-3 mb-4">
+              {["All", "SPayLater", "LazPayLater"].map((p) => {
+                const isActive = platformFilter === p;
+
+                return (
+                  <button
+                    onClick={() => setPlatformFilter(p)}
+                    style={{
+                      backgroundColor: platformFilter === p ? "#3c2064" : "#ffffff",
+                      color: platformFilter === p ? "#ffffff" : "#000000"
+                    }}
+                    className="px-4 py-2 rounded-xl font-semibold"
+                  >
+                    {p}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="max-h-[240px] overflow-y-auto">
+              <table className="w-full text-base">
+                <thead className="border-b text-gray-500 text-sm sticky top-0 bg-white">
+                  <tr>
+                    <th className="text-left py-3">Date</th>
+                    <th className="text-left">Platform</th>
+                    <th className="text-left">Due</th>
+                    <th className="text-right">Amount</th>
+                    <th className="text-right">Installment</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {filteredTx.slice(0, 5).map((tx) => (
+                    <tr key={tx.id} className="border-b hover:bg-gray-50">
+                      <td className="py-3">
+                        {tx.date.toLocaleDateString("en-GB")}
+                      </td>
+                      <td>{tx.platform}</td>
+                      <td>
+                        {tx.dueDate.toLocaleDateString("en-GB")}
+                      </td>
+                      <td className="text-right text-lg font-semibold">
+                        {tx.amount.toLocaleString()}
+                      </td>
+                      <td className="text-right text-lg font-bold text-purple-700">
+                        {tx.installment}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* PLATFORM */}
+          <div className="bg-white p-6 rounded-2xl shadow flex justify-between items-center">
+            <div>
+              <p className="text-gray-500 text-base">Platforms</p>
+              <p className="text-3xl font-bold">
+                {data.providers.length}
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              {data.providers.length === 1 ? (
+                <img
+                  src={getLogo(data.providers[0].name)}
+                  className="w-12 h-12"
+                />
+              ) : (
+                data.providers.map((p, i) => (
+                  <img key={i} src={getLogo(p.name)} className="w-12 h-12" />
+                ))
+              )}
+            </div>
+          </div>
+
+        </div>
 
       </div>
-
     </div>
   );
 }

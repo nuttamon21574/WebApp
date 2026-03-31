@@ -1,19 +1,57 @@
 function transformSPayLater(data) {
-  return data.loanDueDetails.map((loan) => {
-    const outstanding = data.outstandingDetails.find((o) => {
-      if (!o.referenceNo || !loan.referenceNo) return false;
-      return o.referenceNo.slice(-10) === loan.referenceNo.slice(-10);
-    });
+  const normalize = (val) => String(val || "").trim();
+
+  // ✅ สร้าง map ไว้ match เร็ว + ชัวร์
+  const outstandingMap = Object.fromEntries(
+    (data.outstandingDetails || []).map((o) => [
+      normalize(o.referenceNo),
+      o.amount,
+    ])
+  );
+
+  return (data.loanDueDetails || []).map((loan) => {
+    const loanRef = normalize(loan.referenceNo);
 
     return {
       productName: loan.referenceNo,
-      purchaseDate: loan.date, // dd/MM/yyyy อยู่แล้ว
-      dueDate: data.dueDate,   // ✅ ส่ง dueDate ไป frontend
+      purchaseDate: loan.date,
+      dueDate: data.dueDate,
+
       totalDebt: loan.totalDue * loan.totalInstallments,
       annualInterestRate: loan.annualInterestRate,
       totalInstallments: loan.totalInstallments,
       monthlyInstallment: loan.totalDue,
-      outstandingDebt: outstanding?.amount ?? 0,
+
+      // ✅ ดึงค่าได้แน่นอน
+      outstandingDebt: outstandingMap[loanRef] ?? 0,
+    };
+  });
+}function transformSPayLater(data) {
+  const normalize = (val) => String(val || "").trim();
+
+  // ✅ สร้าง map ไว้ match เร็ว + ชัวร์
+  const outstandingMap = Object.fromEntries(
+    (data.outstandingDetails || []).map((o) => [
+      normalize(o.referenceNo),
+      o.amount,
+    ])
+  );
+
+  return (data.loanDueDetails || []).map((loan) => {
+    const loanRef = normalize(loan.referenceNo);
+
+    return {
+      productName: loan.referenceNo,
+      purchaseDate: loan.date,
+      dueDate: data.dueDate,
+
+      totalDebt: loan.totalDue * loan.totalInstallments,
+      annualInterestRate: loan.annualInterestRate,
+      totalInstallments: loan.totalInstallments,
+      monthlyInstallment: loan.totalDue,
+
+      // ✅ ดึงค่าได้แน่นอน
+      outstandingDebt: outstandingMap[loanRef] ?? 0,
     };
   });
 }
@@ -91,7 +129,7 @@ function parseLoanData(rows) {
   }
 
   const loanDueDetails = [];
-  const outstandingDetails = [];
+  let outstandingDetails = [];
 
   // ================= LOAN DUE DETAILS =================
   const dueSection = fullText
@@ -139,47 +177,69 @@ function parseLoanData(rows) {
     });
   }
 
-  // ================= OUTSTANDING BALANCE (FIXED VERSION) =================
-  const outstandingSection = fullText.split(/Outstanding\s*Balance|ยอดหนี้คงเหลือ/i)[1];
+  // ================= OUTSTANDING BALANCE (PAIR LOGIC FIX) =================
 
-  if (outstandingSection) {
-    // 1. ดึง Reference No. ทั้งหมด (20xxxxxxxxxxxxxxxxxxx)
-    const allRefs = [];
-    const refPattern = /\b20\d{17,19}\b/g;
-    let refMatch;
-    while ((refMatch = refPattern.exec(outstandingSection)) !== null) {
-      allRefs.push({ val: refMatch[0], index: refMatch.index });
+// 1. section
+let outstandingSection = null;
+
+const match = fullText.match(/Outstanding[\s\S]*$/i);
+if (match) {
+  outstandingSection = match[0];
+} else {
+  const thMatch = fullText.match(/ยอดหนี้คงเหลือ[\s\S]*$/i);
+  outstandingSection = thMatch ? thMatch[0] : null;
+}
+
+if (outstandingSection) {
+
+  // 2. refs
+  const refs = [...outstandingSection.matchAll(/\b\d{18,22}\b/g)]
+    .map(m => m[0]);
+
+  console.log("REFS:", refs);
+
+  // 3. numbers
+  const nums = outstandingSection.match(/\d{1,3}(?:,\d{3})*(?:\.\d{1,2})/g) || [];
+  const cleanNums = nums.map(n => parseFloat(n.replace(/,/g, "")));
+
+  console.log("ALL NUMS:", cleanNums);
+
+  // 🔥 4. ใช้ pair logic
+  let extracted = [];
+
+  for (let i = 0; i < cleanNums.length - 1; i++) {
+    const current = cleanNums[i];
+    const next = cleanNums[i + 1];
+
+    // ถ้าค่าถัดไปมากกว่า → คือ total
+    if (next > current) {
+      extracted.push(next);
+      i++; // ข้ามคู่
     }
-
-    // 2. ดึง "ยอดรวม" (Total Amount) ทั้งหมด (ตัวเลขที่มี .xx และมักจะอยู่ท้ายแถวหรือใกล้เลขสัญญา)
-    const allAmounts = [];
-    const amountPattern = /\d{1,3}(?:,\d{3})*\.\d{2}/g;
-    let amtMatch;
-    while ((amtMatch = amountPattern.exec(outstandingSection)) !== null) {
-      allAmounts.push({ val: parseFloat(amtMatch[0].replace(/,/g, "")), index: amtMatch.index });
-    }
-
-    // 3. จับคู่ (Mapping): สำหรับแต่ละ Ref ให้หา Amount ที่อยู่ "ใกล้" มันที่สุด 
-    allRefs.forEach(ref => {
-      let closestAmount = null;
-      let minDistance = Infinity;
-
-      allAmounts.forEach(amt => {
-        const distance = Math.abs(ref.index - amt.index);
-        if (distance < minDistance) {
-          minDistance = distance;
-          closestAmount = amt.val;
-        }
-      });
-
-      if (closestAmount !== null) {
-        outstandingDetails.push({
-          referenceNo: ref.val,
-          amount: closestAmount
-        });
-      }
-    });
   }
+
+  console.log("PAIR PICK:", extracted);
+
+  // 🔥 5. ตัด grand total (ตัวสุดท้าย)
+  if (extracted.length > refs.length) {
+    extracted.pop();
+  }
+
+  console.log("FINAL AMOUNTS:", extracted);
+
+  // 6. map
+  refs.forEach((ref, i) => {
+    if (extracted[i] !== undefined) {
+      outstandingDetails.push({
+        referenceNo: ref,
+        amount: extracted[i]
+      });
+    }
+  });
+}
+
+console.log("✅ FINAL:", outstandingDetails);
+
 
   const result = {
     loanType,

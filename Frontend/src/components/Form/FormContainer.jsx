@@ -26,6 +26,7 @@ export default function FormContainer() {
   })
 
   const [showCard, setShowCard] = useState(false)
+  const [ieRatio, setIeRatio] = useState(null)
 
   /* ---------------- โหลดข้อมูลเดิม ---------------- */
 
@@ -70,10 +71,42 @@ export default function FormContainer() {
     form.spaylater_limit !== "" &&
     form.lazpaylater_limit !== ""
 
+  /* ---------------- ฟังก์ชัน save จริง ---------------- */
+
+  const saveData = async () => {
+    const user = auth.currentUser
+    if (!user) return
+
+    const income = Number(form.income)
+    const expense = Number(form.expense)
+
+    await setDoc(
+      doc(db, "users", user.uid),
+      {
+        gender: form.gender,
+        age: Number(form.age),
+        year: form.year,
+
+        income: income,
+        expense: expense,
+
+        spaylater_limit: Number(form.spaylater_limit),
+        lazpaylater_limit: Number(form.lazpaylater_limit),
+
+        balance: income - expense,
+        risk_tier: null,
+
+        updatedAt: new Date(),
+      },
+      { merge: true }
+    )
+
+    navigate("/BNPL")
+  }
+
   /* ---------------- Save / Update ---------------- */
 
   const handleSave = async () => {
-
     const user = auth.currentUser
 
     if (!user) {
@@ -87,7 +120,6 @@ export default function FormContainer() {
     }
 
     try {
-
       const income = Number(form.income)
       const expense = Number(form.expense)
 
@@ -103,39 +135,19 @@ export default function FormContainer() {
 
       /* --------- คำนวณ I/E --------- */
 
-      const ieRatio = income / expense
+      const ratio = income / expense
+      setIeRatio(ratio)
 
-      /* --------- ถ้า I/E < 1 แสดง popup --------- */
+      /* --------- ถ้า I/E ≤ 1 แสดง popup --------- */
 
-      if (ieRatio < 1) {
+      if (ratio <= 1) {
         setShowCard(true)
         return
       }
 
-      /* --------- บันทึกข้อมูล --------- */
+      /* --------- ปกติ save เลย --------- */
 
-      await setDoc(
-        doc(db, "users", user.uid),
-        {
-          gender: form.gender,
-          age: Number(form.age),
-          year: form.year,
-
-          income: income,
-          expense: expense,
-
-          spaylater_limit: Number(form.spaylater_limit),
-          lazpaylater_limit: Number(form.lazpaylater_limit),
-
-          balance: income - expense,
-          risk_tier: null,
-
-          updatedAt: new Date(),
-        },
-        { merge: true }
-      )
-
-      navigate("/BNPL")
+      await saveData()
 
     } catch (err) {
       console.error(err)
@@ -253,7 +265,11 @@ export default function FormContainer() {
 
       {showCard && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">
-          <IncreaseIncomeCard onClose={() => setShowCard(false)}
+          <IncreaseIncomeCard
+            ieRatio={ieRatio}
+            onClose={async () => {
+              setShowCard(false)
+            }}
           />
         </div>
       )}

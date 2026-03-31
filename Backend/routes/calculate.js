@@ -170,6 +170,7 @@ router.post("/calculate-and-save", async (req, res) => {
     let spayLimit = 0;
     let lazLimit = 0;
     let monthlyIncome = 0;
+    let expense = 0;
 
     if (userSnap.exists) {
       const userData = userSnap.data();
@@ -178,6 +179,7 @@ router.post("/calculate-and-save", async (req, res) => {
       lazLimit = toNumber(userData.lazpaylater_limit);
 
       monthlyIncome = toNumber(userData.income);
+      expense = toNumber(userData.expense);
     }
 
     const providerRef = db
@@ -298,15 +300,17 @@ router.post("/calculate-and-save", async (req, res) => {
 
     const installmentToIncome =
       monthlyIncome > 0
-        ? Number((totalMonthlyAll / monthlyIncome).toFixed(4))
+        ? Number((totalMonthlyAll / monthlyIncome).toFixed(2))
         : 0;
+
+
     /* ============================= */
     /* INCOME / EXPENSE RATIO */
     /* ============================= */
 
     const ieRatio =
-      monthlyIncome > 0
-        ? Number((monthlyIncome / totalMonthlyAll).toFixed(4))
+      expense > 0
+        ? Number((monthlyIncome / expense).toFixed(2))
         : 0;
 
     console.log("IE Ratio:", ieRatio);
@@ -352,6 +356,7 @@ router.post("/calculate-and-save", async (req, res) => {
         installment_to_income: installmentToIncome,
         days_since_last_payment: Math.max(spayDays, lazDays),
         platform_count: platformCount,
+        ie_ratio: ieRatio,
       
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       },
