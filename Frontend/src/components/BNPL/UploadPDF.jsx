@@ -121,6 +121,7 @@ export default function UploadPDF() {
           }),
         }
       );
+      console.log("TOKEN:", token);
 
       const data = await res.json();
 
