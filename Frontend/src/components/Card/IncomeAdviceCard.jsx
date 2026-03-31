@@ -1,4 +1,4 @@
-import OKButton from "../Button/OKButton"
+import OKButton from "../Button/OKButton";
 import Error_img from "../../assets/image/error.png"
 
 export default function IncreaseIncomeCard({ ieRatio, onClose }) {
