@@ -8,6 +8,9 @@ import CancelButton from "../Button/CancelButton";
 
 import { useNavigate } from "react-router-dom";
 
+const API_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 export default function UploadPDF() {
   const [password, setPassword] = useState("");
   const [file, setFile] = useState(null);
@@ -51,7 +54,7 @@ export default function UploadPDF() {
     formData.append("password", password);
 
     try {
-      const res = await fetch("http://localhost:5000/api", {
+      fetch(`${API_URL}/api`, {
         method: "POST",
         body: formData,
       });
@@ -105,7 +108,7 @@ export default function UploadPDF() {
       const token = await user.getIdToken();
 
       const res = await fetch(
-        "http://localhost:5000/api/calculate/calculate-and-save",
+        `${API_URL}/api/calculate/calculate-and-save`,
         {
           method: "POST",
           headers: {

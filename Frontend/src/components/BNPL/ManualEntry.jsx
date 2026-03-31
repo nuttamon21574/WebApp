@@ -10,6 +10,9 @@ import { parse, format } from "date-fns";
 
 import { useNavigate } from "react-router-dom";
 
+const API_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 /* =======================================================
    MAIN COMPONENT
 ======================================================= */
@@ -98,7 +101,7 @@ export default function ManualEntry({ onSave, provider }) {
       const uid = user.uid;
 
       const response = await fetch(
-        "http://localhost:5000/api/calculate/calculate-and-save",
+        `${API_URL}/api/calculate/calculate-and-save`,
         {
           method: "POST",
           headers: {
@@ -121,7 +124,7 @@ export default function ManualEntry({ onSave, provider }) {
       /* Persona */
 
       const personaResponse = await fetch(
-        `http://localhost:5000/api/persona/${uid}`,
+        `${API_URL}/api/persona/${uid}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
