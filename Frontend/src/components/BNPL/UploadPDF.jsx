@@ -54,7 +54,7 @@ export default function UploadPDF() {
     formData.append("password", password);
 
     try {
-      fetch(`${API_URL}/api`, {
+      const res = await fetch(`${API_URL}/api`, {
         method: "POST",
         body: formData,
       });
