@@ -44,13 +44,10 @@ admin.initializeApp({ credential });
 
 const app = express();
 
-app.use(cors({
-origin: [
-"http://localhost:5173",
-"https://web-app-five-virid.vercel.app"
-],
-methods: ["GET", "POST"],
-}));
+
+app.use(cors({ origin: "*" }))
+
+
 
 app.use(express.json());
 app.use(fileUpload());
