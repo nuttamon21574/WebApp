@@ -69,11 +69,13 @@ const uploadRoute = require("./routes/upload");
 const calculateRoute = require("./routes/calculate");
 const personaRoute = require("./routes/persona");
 const aiRoute = require("./routes/ai");
+const financialRoute = require("./routes/financial");
 
 app.use("/api", uploadRoute);
 app.use("/api/calculate", calculateRoute);
 app.use("/api/persona", personaRoute);
 app.use("/api/ai", aiRoute);
+app.use("/api/financial", financialRoute);
 
 console.log("Routes loaded ✅");
 

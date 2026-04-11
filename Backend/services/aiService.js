@@ -50,6 +50,13 @@ async function generateFinancialAdvice(user) {
 
   for (const field of requiredFields) {
     if (user[field] === undefined || user[field] === null) {
+
+      // 🔥 allow null สำหรับ risk_tier
+      if (field === "risk_tier") {
+        user[field] = "MEDIUM";
+        continue;
+      }
+
       return fallbackResponse;
     }
   }

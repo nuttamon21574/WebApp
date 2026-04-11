@@ -94,6 +94,7 @@ export default function FormContainer() {
         lazpaylater_limit: Number(form.lazpaylater_limit),
 
         balance: income - expense,
+        total_limit: Number(form.spaylater_limit) + Number(form.lazpaylater_limit),
         risk_tier: null,
 
         updatedAt: new Date(),

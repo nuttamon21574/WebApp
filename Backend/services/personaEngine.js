@@ -56,6 +56,11 @@ function assignPersona(data) {
     return "Loan Rollover";
   }
 
+  // 5️⃣ ❗ ใหม่: จ่ายไม่ได้เลย
+  if (balance < totalInstallment) {
+    return "Unable to Pay";
+  }
+
   return null;
 }
 

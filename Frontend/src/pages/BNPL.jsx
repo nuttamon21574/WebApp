@@ -11,14 +11,13 @@ import CheckBNPL from "../components/BNPL/CheckBNPL";
 import BNPLProviderSelect from "../components/BNPL/BNPLProviderSelect";
 
 import { auth, db } from "@/firebase";
-import { doc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
+import { collection, addDoc, getDocs } from "firebase/firestore";
 
 export default function BNPL() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // ===== รับค่าจาก navigate state =====
   const startMode = location.state?.startMode || "pdf";
   const startProvider = location.state?.provider || "SPayLater";
 
@@ -46,7 +45,6 @@ export default function BNPL() {
     });
   };
 
-  // ===== LazPayLater → manual only =====
   useEffect(() => {
     if (provider === "LazPayLater" && mode === "pdf") {
       resetBNPLFlow();
@@ -54,7 +52,7 @@ export default function BNPL() {
     }
   }, [provider, mode]);
 
-  // ===== ✅ เช็คว่ามีหนี้แล้วหรือยัง =====
+  // ✅ FIX: check debt
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       if (!user) {
@@ -63,21 +61,27 @@ export default function BNPL() {
       }
 
       try {
-        const snap = await getDoc(doc(db, "bnplDebt", user.uid));
+        const snap = await getDocs(
+          collection(db, "debts", user.uid, "items")
+        );
 
-        if (snap.exists()) {
-          const data = snap.data();
+        let hasDebt = false;
 
-          const hasDebt =
+        snap.forEach((doc) => {
+          const data = doc.data();
+
+          if (
             data.totalDebt > 0 ||
             data.outstandingBalance > 0 ||
-            data.installments > 0;
-
-          // ✅ ถ้ามีหนี้ → ไม่เข้า empty
-          if (hasDebt && startMode === "empty") {
-            setProvider("SPayLater"); // Shopee
-            setMode("pdf");           // เข้าโหมด PDF
+            data.installments > 0
+          ) {
+            hasDebt = true;
           }
+        });
+
+        if (hasDebt && startMode === "empty") {
+          setProvider("SPayLater");
+          setMode("pdf");
         }
       } catch (err) {
         console.error("Check debt error:", err);
@@ -89,7 +93,6 @@ export default function BNPL() {
     return () => unsub();
   }, [startMode]);
 
-  // ===== กัน render ก่อนเช็คเสร็จ =====
   if (checkingDebt) {
     return <div className="text-white p-10">Loading...</div>;
   }
@@ -98,13 +101,11 @@ export default function BNPL() {
     <div className="min-h-screen w-screen bg-purple-950 px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
       <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-4 h-full">
         
-        {/* Sidebar */}
         <Sidebar activeTab="BNPL" />
 
         <div className="flex flex-col mt-10 lg:mt-0">
           <BNPLName />
 
-          {/* Provider Select */}
           {(mode === "manual" || mode === "pdf") && (
             <div className="flex flex-col mb-4 gap-4">
               <BNPLProviderSelect
@@ -116,7 +117,6 @@ export default function BNPL() {
 
           <div className="bg-white rounded-3xl p-8 h-screen flex flex-col gap-6 overflow-auto">
             
-            {/* Mode Selector */}
             {mode !== "empty" && (
               <ModeSelector
                 mode={mode}
@@ -128,7 +128,6 @@ export default function BNPL() {
               />
             )}
 
-            {/* Empty */}
             {mode === "empty" && (
               <EmptyBNPL
                 onAdd={() => {
@@ -142,32 +141,31 @@ export default function BNPL() {
               />
             )}
 
-            {/* Manual */}
             {mode === "manual" && (
-            <ManualEntry
-              provider={provider}   // 🔥 เพิ่มบรรทัดนี้
-              onCancel={() => {
-                resetBNPLFlow();
-                setMode("empty");
-              }}
-              onSave={(data) => {
-                setForm({
-                  total: data.totalDebt,
-                  installments: data.installments,
-                  monthly: data.monthlyPayment,
-                  interest: data.interest,
-                  dueDate: data.dueDate,
-                });
+              <ManualEntry
+                provider={provider}
+                onCancel={() => {
+                  resetBNPLFlow();
+                  setMode("empty");
+                }}
+                onSave={(data) => {
+                  setForm({
+                    total: data.totalDebt,
+                    installments: data.installments,
+                    monthly: data.monthlyPayment,
+                    interest: data.interest,
+                    dueDate: data.dueDate,
+                  });
 
-                navigate("/dashboard");
-              }}
-            />
-          )}
+                  navigate("/dashboard");
+                }}
+              />
+            )}
 
-            {/* PDF */}
             {mode === "pdf" && (
               <div className="flex flex-col gap-10">
                 <UploadPDF
+                  provider={provider}
                   onCancel={() => {
                     resetBNPLFlow();
                     setMode("empty");
@@ -176,19 +174,46 @@ export default function BNPL() {
                 />
 
                 {showCheckBNPL && (
-                  <CheckBNPL
-                    form={form}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        [e.target.name]: e.target.value,
-                      }))
-                    }
-                    onSave={() => {
+                <CheckBNPL
+                  contracts={[
+                    {
+                      productName: provider,
+                      totalDebt: Number(form.total),
+                      outstandingDebt: Number(form.total),
+                      monthlyInstallment: Number(form.monthly),
+                      totalInstallments: Number(form.installments),
+                      annualInterestRate: Number(form.interest),
+                      purchaseDate: form.dueDate,
+                    },
+                  ]}
+                  onSave={async () => {
+                    const user = auth.currentUser;
+                    if (!user) return;
+
+                    try {
+                      await addDoc(
+                        collection(db, "debts", user.uid, "items"),
+                        {
+                          totalDebt: Number(form.total),
+                          outstandingBalance: Number(form.total),
+                          monthlyInstallment: Number(form.monthly),
+                          installments: Number(form.installments),
+                          interestRate: Number(form.interest),
+                          dueDate: form.dueDate,
+                          provider: provider,
+                          createdAt: new Date(),
+                        }
+                      );
+
+                      console.log("✅ Saved to Firebase");
                       navigate("/dashboard");
-                    }}
-                  />
-                )}
+
+                    } catch (err) {
+                      console.error("❌ Save error:", err);
+                    }
+                  }}
+                />
+              )}
               </div>
             )}
 

@@ -1,302 +1,356 @@
 import { useEffect, useState } from "react";
-
-import {
-  BarChart, Bar, XAxis, YAxis, ResponsiveContainer,
-  Tooltip, Legend, LabelList
-} from "recharts";
+import { 
+  collection, 
+  query, 
+  onSnapshot, 
+  orderBy,
+  getDoc,
+  doc,
+  deleteDoc
+} from "firebase/firestore";
 
 import { auth, db } from "@/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc, collection, getDocs } from "firebase/firestore";
 
-import shopeeLogo from "@/assets/image/shopee.png";
-import lazadaLogo from "@/assets/image/lazada.png";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+  BarChart,
+  Bar,
+  Legend
+} from "recharts";
+
+
 
 export default function BNPLDashboard() {
-
   const [data, setData] = useState(null);
   const [transactions, setTransactions] = useState([]);
+  const [dtiHistory, setDtiHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("all");
 
-  const [platformFilter, setPlatformFilter] = useState("All");
+  const toNumber = (val) =>
+    typeof val === "number" ? val : parseFloat(val) || 0;
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
+    let unsubTx = null;
+    let unsubDTI = null;
+
+    const unsubAuth = onAuthStateChanged(auth, async (user) => {
       if (!user) return;
 
+      // =============================
+      // USER DATA
+      // =============================
       const userDoc = await getDoc(doc(db, "users", user.uid));
-      const userData = userDoc.data();
+      const userData = userDoc.data() || {};
+      const summary = userData || {}; // 🔥 ใช้ตรง ๆ ไม่ใช้ summary ซ้อน
 
-      const providersSnap = await getDocs(
-        collection(db, "bnplDebt", user.uid, "providers")
+      const spayLimit = userData.spaylater_limit || 0;
+      const lazLimit = userData.lazpaylater_limit || 0;
+
+      // =============================
+      // TRANSACTIONS
+      // =============================
+      const qTx = query(
+        collection(db, "bnplDebt", user.uid, "items"),
+        orderBy("createdAt", "desc")
       );
 
-      let providers = [];
-      let totalOutstanding = 0;
-      let allTx = [];
+      unsubTx = onSnapshot(qTx, (snap) => {
+        const txMap = new Map();
 
-      for (const docSnap of providersSnap.docs) {
-        const d = docSnap.data();
-        const providerName = d.bnplProvider || docSnap.id;
-        const amount = d.provider_outstanding || 0;
+        snap.forEach((docSnap) => {
+          const d = docSnap.data();
 
-        providers.push({
-          name: providerName,
-          outstanding: amount
+          const tx = {
+            id: docSnap.id,
+            productName: d.productName || "-",
+            purchaseDate: d.purchaseDate || "",
+            amount: toNumber(d.outstandingDebt),
+            platform: (d.provider || "").toLowerCase(),
+            createdAt: d.createdAt?.toDate?.() || new Date(0)
+          };
+
+          // 🔥 key = สินค้า + วันที่ซื้อ
+          const key = `${tx.productName}_${tx.purchaseDate}`;
+
+          if (!txMap.has(key)) {
+            txMap.set(key, tx);
+          } else {
+            const existing = txMap.get(key);
+
+            if (tx.createdAt > existing.createdAt) {
+              txMap.set(key, tx);
+            }
+          }
         });
 
-        totalOutstanding += amount;
+        // 🔥 final list (dedupe + sort)
+        const finalTx = Array.from(txMap.values())
+          .sort((a, b) => b.createdAt - a.createdAt);
 
-        const entriesSnap = await getDocs(
-          collection(db, "bnplDebt", user.uid, "providers", docSnap.id, "entries")
-        );
+        setTransactions(finalTx);
 
-        entriesSnap.forEach((entryDoc) => {
-          const e = entryDoc.data();
+        // =============================
+        // ✅ FIX: ใช้ finalTx แทน allTx
+        // =============================
+        let spayDebt = 0;
+        let lazDebt = 0;
 
-          const created = e.createdAt?.toDate?.() || new Date();
-
-          const totalTerms = e.selected_terms || 1;
-          const remaining = e.remaining_installments ?? totalTerms;
-
-          const safeRemaining = Math.max(0, Math.min(remaining, totalTerms));
-
-          const currentInstallment =
-            safeRemaining === 0
-              ? totalTerms
-              : totalTerms - safeRemaining + 1;
-
-          const dueDate = new Date(
-            created.getTime() +
-              (currentInstallment - 1) * 30 * 24 * 60 * 60 * 1000
-          );
-
-          const today = new Date();
-          let status = "Pending";
-
-          if (safeRemaining === 0) status = "Paid";
-          else if (today > dueDate) status = "Overdue";
-
-          allTx.push({
-            id: entryDoc.id,
-            date: created,
-            platform: providerName,
-            dueDate,
-            amount: e.outstanding_debt || 0,
-            installment: `${currentInstallment}/${totalTerms}`,
-            status
-          });
+        finalTx.forEach((tx) => {
+          if (tx.platform.includes("spay")) {
+            spayDebt += tx.amount;
+          } else if (tx.platform.includes("laz")) {
+            lazDebt += tx.amount;
+          }
         });
-      }
 
-      const totalLimit =
-        (userData?.spaylater_limit || 0) +
-        (userData?.lazpaylater_limit || 0);
+        const totalDebt = spayDebt + lazDebt;
 
-      setData({
-        providers,
-        outstanding: totalOutstanding,
-        limit: totalLimit,
-        available: totalLimit - totalOutstanding,
-        utilization: userData?.credit_utilization || 0,
-        dti: userData?.installment_to_income || 0
+        setData({
+          outstanding: totalDebt,
+          utilization:
+            totalDebt > 0
+              ? ((totalDebt / (spayLimit + lazLimit)) * 100)
+              : 0,
+          available:
+            spayLimit + lazLimit - totalDebt,
+
+          spayLimit,
+          lazLimit,
+          spayDebt,
+          lazDebt
+        });
+
+        setLoading(false);
       });
 
-      allTx.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
-      setTransactions(allTx);
-      setLoading(false);
+      // =============================
+      // DTI HISTORY
+      // =============================
+      const qDTI = query(
+        collection(db, "DTI", user.uid, "history")
+      );
+
+      unsubDTI = onSnapshot(qDTI, (snap) => {
+        const history = [];
+
+        snap.forEach((docSnap) => {
+          const d = docSnap.data();
+
+          history.push({
+            date: d.createdAt?.toDate?.() || new Date(),
+            dti: (d.installment_to_income || 0) * 100,
+          });
+        });
+
+        history.sort((a, b) => a.date - b.date);
+        setDtiHistory(history);
+      });
     });
 
-    
-
-    return () => unsub();
+    return () => {
+      unsubAuth();
+      if (unsubTx) unsubTx();
+      if (unsubDTI) unsubDTI();
+    };
   }, []);
 
-  if (loading || !data) return <div className="p-8 text-lg">Loading...</div>;
+  if (loading || !data)
+    return <div className="p-8 text-lg">Loading...</div>;
 
-  const providerCount = data.providers.length || 1;
+  // =============================
+  // BAR DATA
+  // =============================
+  const platformCompareData = [
+    {
+      name: "SPayLater",
+      outstanding: data.spayDebt,
+      available: data.spayLimit
+    },
+    {
+      name: "LazPayLater",
+      outstanding: data.lazDebt,
+      available: data.lazLimit
+    }
+  ];
 
-  const barData = data.providers.map((p) => ({
-    name: p.name,
-    outstanding: p.outstanding,
-    limit: data.limit / providerCount
-  }));
+  const handleDeleteTransaction = async (txId) => {
+    const user = auth.currentUser;
+    if (!user) return;
 
-  const getLogo = (name) => {
-    if (name.toLowerCase().includes("spay")) return shopeeLogo;
-    if (name.toLowerCase().includes("laz")) return lazadaLogo;
-    return null;
+    const confirmDelete = window.confirm(
+      "ยืนยันลบรายการหนี้นี้หรือไม่? ยอดหนี้และการคำนวณจะอัปเดตใหม่หลังลบ"
+    );
+    if (!confirmDelete) return;
+
+    try {
+      await deleteDoc(doc(db, "bnplDebt", user.uid, "items", txId));
+
+      await fetch("http://localhost:5000/api/calculate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ uid: user.uid }),
+      });
+    } catch (err) {
+      console.error("Delete transaction failed:", err);
+      alert("ไม่สามารถลบรายการได้ กรุณาลองใหม่");
+    }
   };
 
-  const filteredTx =
-    platformFilter === "All"
-      ? transactions
-      : transactions.filter((tx) =>
-          tx.platform.toLowerCase().includes(platformFilter.toLowerCase())
-        );
+  const filteredTransactions = transactions.filter((tx) => {
+    if (activeTab === "all") return true;
+    if (activeTab === "spay") return tx.platform.includes("spay");
+    if (activeTab === "laz") return tx.platform.includes("laz");
+    return true;
+  });
 
   return (
-    <div className="p-8 bg-gray-50 min-h-screen text-lg">
+    <div className="p-0 bg-gray-50 min-h-screen text-lg">
 
       {/* KPI */}
-      <div className="mt-0 grid md:grid-cols-3 gap-6">
+      <div className="grid md:grid-cols-2 gap-6 mb-8">
         <div className="bg-white p-5 rounded-2xl shadow">
-          <p className="text-gray-500 text-base">Total Debt</p>
-          <p className="text-3xl font-bold text-purple-700">
+          <p>Total Debt</p>
+          <p className="text-3xl font-bold">
             {data.outstanding.toLocaleString()}
           </p>
         </div>
 
         <div className="bg-white p-5 rounded-2xl shadow">
-          <p className="text-gray-500 text-base">Credit Utilization</p>
-          <p className="text-3xl font-bold text-purple-700">
-            {(data.utilization * 100).toFixed(0)}%
+          <p>Credit Utilization</p>
+          <p className="text-3xl font-bold">
+            {data.utilization.toFixed(0)}%
           </p>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl shadow">
-          <p className="text-gray-500 text-base">DTI</p>
-          <p className="text-3xl font-bold text-green-600">
-            {(data.dti * 100).toFixed(0)}%
-          </p>
-        </div>
+        
       </div>
 
-      {/* MAIN GRID */}
-      <div className="grid md:grid-cols-2 gap-6 mt-6">
+      {/* 🔥 2 CHARTS */}
+      <div className="grid md:grid-cols-2 gap-6 mb-8">
 
-        {/* LEFT = BAR */}
-        <div className="bg-white p-6 rounded-2xl shadow">
-          <h3 className="font-semibold text-lg mb-3">
-            Outstanding vs Limit
-          </h3>
+        {/* BAR */}
+        <div className="bg-white p-5 rounded-2xl shadow">
+          <h2 className="text-xl font-bold mb-4">
+            BNPL Snapshot
+          </h2>
 
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart
-              data={barData}
-              margin={{ top: 30, right: 20, left: 0, bottom: 5 }}
-            >
+            <BarChart data={platformCompareData}>
+              <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
-              <YAxis tickFormatter={(v) => `${v / 1000}k`} />
+              <YAxis />
               <Tooltip />
               <Legend />
-
-              <Bar dataKey="outstanding" fill="#6D28D9">
-                <LabelList dataKey="outstanding" position="top" />
-              </Bar>
-
-              <Bar dataKey="limit" fill="#C4B5FD">
-                <LabelList dataKey="limit" position="top" />
-              </Bar>
+              <Bar dataKey="outstanding" fill="#6B21A8" />
+              <Bar dataKey="available" fill="#C084FC" />
             </BarChart>
           </ResponsiveContainer>
-
-          <div className="mt-4 border-t pt-4 text-base">
-            <div className="flex justify-between">
-              <span>Total Used</span>
-              <span className="font-semibold text-purple-700 text-lg">
-                {data.outstanding.toLocaleString()}
-              </span>
-            </div>
-
-            <div className="flex justify-between">
-              <span>Available</span>
-              <span className="font-semibold text-green-600 text-lg">
-                {data.available.toLocaleString()}
-              </span>
-            </div>
-          </div>
         </div>
 
-        {/* RIGHT */}
-        <div className="flex flex-col gap-6">
+        {/* DTI */}
+        <div className="bg-white p-5 rounded-2xl shadow">
+          <h2 className="text-xl font-bold mb-4">
+            DTI Trend
+          </h2>
 
-          {/* TABLE */}
-          <div className="bg-white p-6 rounded-2xl shadow">
-            <h3 className="font-semibold text-lg mb-4">
-              Recent Transactions
-            </h3>
-
-            <div className="flex gap-3 mb-4">
-              {["All", "SPayLater", "LazPayLater"].map((p) => {
-                const isActive = platformFilter === p;
-
-                return (
-                  <button
-                    onClick={() => setPlatformFilter(p)}
-                    style={{
-                      backgroundColor: platformFilter === p ? "#3c2064" : "#ffffff",
-                      color: platformFilter === p ? "#ffffff" : "#000000"
-                    }}
-                    className="px-4 py-2 rounded-xl font-semibold"
-                  >
-                    {p}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="max-h-[240px] overflow-y-auto">
-              <table className="w-full text-base">
-                <thead className="border-b text-gray-500 text-sm sticky top-0 bg-white">
-                  <tr>
-                    <th className="text-left py-3">Date</th>
-                    <th className="text-left">Platform</th>
-                    <th className="text-left">Due</th>
-                    <th className="text-right">Amount</th>
-                    <th className="text-right">Installment</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {filteredTx.slice(0, 5).map((tx) => (
-                    <tr key={tx.id} className="border-b hover:bg-gray-50">
-                      <td className="py-3">
-                        {tx.date.toLocaleDateString("en-GB")}
-                      </td>
-                      <td>{tx.platform}</td>
-                      <td>
-                        {tx.dueDate.toLocaleDateString("en-GB")}
-                      </td>
-                      <td className="text-right text-lg font-semibold">
-                        {tx.amount.toLocaleString()}
-                      </td>
-                      <td className="text-right text-lg font-bold text-purple-700">
-                        {tx.installment}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* PLATFORM */}
-          <div className="bg-white p-6 rounded-2xl shadow flex justify-between items-center">
-            <div>
-              <p className="text-gray-500 text-base">Platforms</p>
-              <p className="text-3xl font-bold">
-                {data.providers.length}
-              </p>
-            </div>
-
-            <div className="flex gap-3">
-              {data.providers.length === 1 ? (
-                <img
-                  src={getLogo(data.providers[0].name)}
-                  className="w-12 h-12"
-                />
-              ) : (
-                data.providers.map((p, i) => (
-                  <img key={i} src={getLogo(p.name)} className="w-12 h-12" />
-                ))
-              )}
-            </div>
-          </div>
-
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={dtiHistory}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis
+                dataKey="date"
+                tickFormatter={(date) =>
+                  new Date(date).toLocaleDateString()
+                }
+              />
+              <YAxis />
+              <Tooltip
+                formatter={(value) => `${value.toFixed(0)}%`}
+              />
+              <Line
+                type="monotone"
+                dataKey="dti"
+                stroke="#8884d8"
+                strokeWidth={3}
+              />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
 
       </div>
+
+      {/* 🔥 TRANSACTIONS */}
+      <div className="bg-white p-5 rounded-2xl shadow">
+        <h2 className="text-xl font-bold mb-4">
+          Recent Transactions
+        </h2>
+
+        {/* 🔥 TABS */}
+        <div className="flex gap-2 mb-4">
+          {[
+            { key: "all", label: "All" },
+            { key: "spay", label: "SPayLater" },
+            { key: "laz", label: "LazPayLater" }
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+             className={`px-4 py-2 rounded-full text-sm font-semibold transition`}
+              style={{
+                backgroundColor: activeTab === tab.key ? "#6B21A8" : "#EDE9FE",
+                color: activeTab === tab.key ? "#fff" : "#6B21A8"
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="max-h-[380px] overflow-y-auto">
+          {/* 🔥 LIST */}
+          {filteredTransactions.length === 0 ? (
+            <p className="text-gray-500">No transactions</p>
+          ) : (
+            filteredTransactions.map((tx) => (
+              <div
+                key={tx.id}
+                className="flex justify-between border-b py-2 items-center gap-3"
+              >
+                <div>
+                  <p className="font-semibold">
+                    {tx.productName}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {tx.platform}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <p className="font-bold">
+                    {tx.amount.toLocaleString()} Baht
+                  </p>
+                  <button
+                    onClick={() => handleDeleteTransaction(tx.id)}
+                    className="text-sm text-red-600 hover:text-red-800"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
     </div>
   );
 }
