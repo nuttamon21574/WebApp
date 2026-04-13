@@ -1,14 +1,7 @@
 const express = require("express");
 const router = express.Router();
-
-const admin = require("firebase-admin");
-
-// 🔥 สำคัญมาก: ต้อง init ก่อน
-if (!admin.apps.length) {
-  admin.initializeApp();
-}
-
-const db = admin.firestore();
+const fetch = require("node-fetch");
+const { admin, db } = require("../firebaseAdmin");
 
 /* =========================
    SAFE NUMBER

@@ -1,11 +1,10 @@
 const express = require("express");
 const router = express.Router();
-const admin = require("firebase-admin");
-
-const db = admin.firestore();
+const { admin, db } = require("../firebaseAdmin");
 
 const { assignPersona } = require("../services/personaEngine");
 const { generateFinancialAdvice } = require("../services/aiService");
+
 
 /* =========================
    SAFE NUMBER

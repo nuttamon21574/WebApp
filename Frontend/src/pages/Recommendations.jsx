@@ -4,14 +4,16 @@ import MonthPicker from "../components/Button/MonthPicker.jsx";
 import Statinfo from "../components/Card/Statinfo.jsx";
 
 import { db, auth } from "../firebase";
-import {
+/*import {
   collection,
   query,
   where,
   orderBy,
   limit,
   getDocs
-} from "firebase/firestore";
+} from "firebase/firestore";*/
+
+import { doc, getDoc } from "firebase/firestore";
 
 export default function Recommendations() {
 
@@ -20,29 +22,20 @@ export default function Recommendations() {
   useEffect(() => {
 
     const fetchRecommendation = async () => {
-
       try {
-
         const user = auth.currentUser;
         if (!user) return;
 
-        const q = query(
-          collection(db, "recommendation"),
-          where("userId", "==", user.uid),
-          orderBy("createdAt", "desc"),
-          limit(1)
-        );
+        const docRef = doc(db, "recommendation", user.uid);
+        const snap = await getDoc(docRef);
 
-        const snapshot = await getDocs(q);
-
-        if (!snapshot.empty) {
-          setAdvice(snapshot.docs[0].data());
+        if (snap.exists()) {
+          setAdvice(snap.data().latest); // 🔥 ดึง latest
         }
 
       } catch (err) {
         console.error("Fetch recommendation error:", err);
       }
-
     };
 
     fetchRecommendation();
