@@ -236,7 +236,7 @@ const handleSave = async () => {
               value={item.totalInstallments}
               onChange={(e) => handleChange(index, e)}
               options={[
-                "1", "3", "6", "9", "12", "18", "24", "36"
+                "1","2", "3", "5", "6", "9", "12", "18", "24", "36"
               ]}
             />
 
