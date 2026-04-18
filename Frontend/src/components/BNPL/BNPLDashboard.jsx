@@ -380,7 +380,7 @@ if (loading)
         </h2>
 
         {/* 🔥 TABS */}
-        <div className="flex gap-2 mb-4">
+        <div className="flex gap-2 mb-4 overflow-x-auto whitespace-nowrap">
           {[
             { key: "all", label: "All" },
             { key: "spay", label: "SPayLater" },
@@ -439,7 +439,7 @@ if (loading)
           </div>
 
           {/* RIGHT */}
-          <div className="flex flex-col items-end gap-2">
+          <div className="flex justify-between border-b py-3 items-center gap-3">
 
             <p className="font-bold">
               {tx.amount.toLocaleString()} Baht
