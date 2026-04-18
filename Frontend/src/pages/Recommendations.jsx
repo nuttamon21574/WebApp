@@ -4,124 +4,145 @@ import MonthPicker from "../components/Button/MonthPicker.jsx";
 import Statinfo from "../components/Card/Statinfo.jsx";
 
 import { db, auth } from "../firebase";
-/*import {
-  collection,
-  query,
-  where,
-  orderBy,
-  limit,
-  getDocs
-} from "firebase/firestore";*/
-
 import { doc, getDoc } from "firebase/firestore";
 
 export default function Recommendations() {
 
-  const [advice, setAdvice] = useState(null);
+  // =============================
+  // 📅 CURRENT MONTH
+  // =============================
+  const getCurrentMonth = () => {
+    const now = new Date();
+    const thai = new Date(
+      now.toLocaleString("en-US", { timeZone: "Asia/Bangkok" })
+    );
 
+    return `${thai.getFullYear()}-${String(
+      thai.getMonth() + 1
+    ).padStart(2, "0")}`;
+  };
+
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
+  const [advice, setAdvice] = useState(null);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  // =============================
+  // 🔐 AUTH
+  // =============================
   useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((u) => {
+      setUser(u);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // =============================
+  // 📡 FETCH
+  // =============================
+  useEffect(() => {
+    if (!user || !selectedMonth) return;
+
+    let isMounted = true;
 
     const fetchRecommendation = async () => {
       try {
-        const user = auth.currentUser;
-        if (!user) return;
+        setLoading(true);
 
-        const docRef = doc(db, "recommendation", user.uid);
+        const docRef = doc(
+          db,
+          "recommendation",
+          user.uid,
+          "monthly",
+          selectedMonth
+        );
+
         const snap = await getDoc(docRef);
 
+        if (!isMounted) return;
+
         if (snap.exists()) {
-          setAdvice(snap.data().latest); // 🔥 ดึง latest
+          const raw = snap.data();
+
+          const normalized = {
+            ...raw,
+            recommended_payment: Number(raw.recommended_payment || 0),
+            remaining_monthly_cash: Number(raw.remaining_monthly_cash || 0),
+            actions: raw.actions || [],
+            benefits: raw.benefits || [],
+          };
+
+          setAdvice(normalized);
+        } else {
+          setAdvice(null); // 🔥 ให้ Statinfo handle
         }
 
       } catch (err) {
-        console.error("Fetch recommendation error:", err);
+        console.error(err);
+      } finally {
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchRecommendation();
 
-  }, []);
+    return () => {
+      isMounted = false;
+    };
 
+  }, [selectedMonth, user]);
+
+  // =============================
+  // 🎨 UI
+  // =============================
   return (
+    <div className="min-h-screen w-screen bg-purple-950 px-4 sm:px-6 lg:px-10 py-6">
 
-<div className="min-h-screen w-screen bg-purple-950 px-4 sm:px-6 lg:px-10 py-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 h-full">
 
-  <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 h-full">
+        <Sidebar activeTab="Recommendations" />
 
-    <Sidebar activeTab="Recommendations" />
+        <div className="flex flex-col mt-6 lg:mt-0">
 
-    <div className="flex flex-col mt-6 lg:mt-0">
+          <p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-amber-50">
+            Recommendation
+          </p>
 
-      <p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-amber-50">
-        Recommendation
-      </p>
+          {/* Month Picker */}
+          <div className="mt-4 mb-6">
+            <MonthPicker
+              value={selectedMonth}
+              onChange={(val) => {
+                console.log("📅 CHANGE MONTH:", val);
+                setSelectedMonth(val);
+              }}
+            />
+          </div>
 
-      <div className="mt-4 mb-6">
-        <MonthPicker />
-      </div>
+          {/* CONTENT */}
+          <div className="bg-white rounded-3xl p-6 sm:p-8 lg:p-10 w-full shadow-md min-h-[400px]">
 
-      <div className="bg-white rounded-3xl p-6 sm:p-8 lg:p-10 w-full shadow-md">
+            {/* 🔄 Loading */}
+            {loading && (
+              <p className="text-gray-500 text-center">
+                Loading...
+              </p>
+            )}
 
-        <div className="flex flex-col gap-6">
+            {/* ✅ ใช้ Statinfo ตลอด */}
+            {!loading && (
+              <Statinfo
+                key={selectedMonth}
+                advice={advice}
+              />
+            )}
 
-          <Statinfo />
-
-          {advice && (
-            <div className="space-y-6">
-
-              <div>
-                <p className="font-bold text-lg sm:text-xl">Financial Status</p>
-                <p className="text-gray-700 text-sm sm:text-base">
-                  {advice.financial_status}
-                </p>
-              </div>
-
-              <div>
-                <p className="font-bold text-lg sm:text-xl">Strategy</p>
-                <p className="text-gray-700 text-sm sm:text-base">
-                  {advice.strategy}
-                </p>
-              </div>
-
-              <div>
-                <p className="font-bold text-lg sm:text-xl">
-                  Recommended Payment
-                </p>
-                <p className="text-gray-700 text-base sm:text-lg font-semibold">
-                  {advice.recommended_payment} บาท
-                </p>
-              </div>
-
-              <div>
-                <p className="font-bold text-lg sm:text-xl">Actions</p>
-                <ul className="list-disc pl-6 text-sm sm:text-base space-y-1">
-                  {(advice.actions || []).map((a, i) => (
-                    <li key={i}>{a}</li>
-                  ))}
-                </ul>
-              </div>
-
-              <div>
-                <p className="font-bold text-lg sm:text-xl">Benefits</p>
-                <ul className="list-disc pl-6 text-sm sm:text-base space-y-1">
-                  {(advice.benefits || []).map((b, i) => (
-                    <li key={i}>{b}</li>
-                  ))}
-                </ul>
-              </div>
-
-            </div>
-          )}
+          </div>
 
         </div>
 
       </div>
 
     </div>
-
-  </div>
-
-</div>
-
   );
 }

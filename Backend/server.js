@@ -13,6 +13,7 @@ const cors = require("cors");
 const fileUpload = require("express-fileupload");
 const admin = require("firebase-admin");
 
+
 /* ================= FIREBASE ================= */
 
 let credential;
@@ -70,12 +71,14 @@ const calculateRoute = require("./routes/calculate");
 const personaRoute = require("./routes/persona");
 const aiRoute = require("./routes/ai");
 const financialRoute = require("./routes/financial");
+const mlRoute = require("./routes/ml");
 
 app.use("/api", uploadRoute);
 app.use("/api/calculate", calculateRoute);
 app.use("/api/persona", personaRoute);
 app.use("/api/ai", aiRoute);
 app.use("/api/financial", financialRoute);
+app.use("/api/ml", mlRoute);
 
 console.log("Routes loaded ✅");
 

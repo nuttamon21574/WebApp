@@ -52,7 +52,7 @@ function assignPersona(data) {
   }
 
   // 4️⃣ ต้อง rollover
-  if (validLoanRollover(data)) {
+  if (totalInstallment === 1 && balance < totalInstallment) {
     return "Loan Rollover";
   }
 

@@ -48,9 +48,23 @@ async function generateFinancialAdvice(user) {
     "risk_tier"
   ];
 
+  // 🔥 Allow missing fields with defaults
+  const defaults = {
+    income: 10000, // default income for calculation
+    expense: 0,
+    spaylater_limit: 0,
+    lazpaylater_limit: 0,
+    spaylater_missed_installments: 0,
+    lazpaylater_missed_installments: 0,
+    balance: 0,
+  };
+
   for (const field of requiredFields) {
     if (user[field] === undefined || user[field] === null) {
-
+      if (field in defaults) {
+        user[field] = defaults[field];
+        continue;
+      }
       // 🔥 allow null สำหรับ risk_tier
       if (field === "risk_tier") {
         user[field] = "MEDIUM";
@@ -71,19 +85,21 @@ async function generateFinancialAdvice(user) {
   const total_debt = Number(user.total_debt);
   const total_installment = Number(user.total_installment);
 
-  if (income <= 0) {
-    return fallbackResponse;
-  }
+  // 🔥 Allow zero income for now
+  // if (income <= 0) {
+  //   return fallbackResponse;
+  // }
 
   const ie_ratio =
     expense === 0 ? 0 : Number((income / expense).toFixed(2));
 
   const dti =
-    Number(((total_installment / income) * 100).toFixed(2));
+    income > 0 ? Number(((total_installment / income) * 100).toFixed(2)) : 0;
 
-  if (total_debt === 0) {
-    return fallbackResponse;
-  }
+  // 🔥 Allow zero debt for now
+  // if (total_debt === 0) {
+  //   return fallbackResponse;
+  // }
 
   /* ===============================
      3️⃣ DETERMINE GROUP + STRATEGY
@@ -152,64 +168,84 @@ async function generateFinancialAdvice(user) {
   =============================== */
 
   const prompt = `
-คุณคือผู้ช่วยวางแผนการเงิน เพศหญิง อายุ 21 ปี ที่ช่วยนักศึกษาจัดการและวางแผนเคลียร์หนี้ BNPL
+  คุณคือผู้ช่วยวางแผนการเงิน เพศหญิง อายุ 21 ปี ที่ช่วยนักศึกษาจัดการและวางแผนเคลียร์หนี้ BNPL
 
-เวลาพูดกับผู้ใช้ ให้ใช้คำเรียกตามอายุของผู้ใช้เพื่อให้ดูเป็นกันเอง:
-- ถ้าผู้ใช้มีอายุมากกว่า 21 ปี ให้เรียกว่า "พี่"
-- ถ้าผู้ใช้อายุเท่ากับ 21 ปี ให้เรียกว่า "คุณ"
-- ถ้าผู้ใช้อายุน้อยกว่า 21 ปี ให้เรียกว่า "น้อง"
+  เวลาพูดกับผู้ใช้ ให้ใช้คำเรียกตามอายุของผู้ใช้:
+  - ถ้าอายุ > 21 ปี ให้เรียกว่า "พี่"
+  - ถ้าอายุ = 21 ปี ให้เรียกว่า "คุณ"
+  - ถ้าอายุ < 21 ปี ให้เรียกว่า "น้อง"
 
-สไตล์การให้คำแนะนำ:
-- พูดด้วยน้ำเสียงเป็นมิตร เหมือนผู้ช่วยที่คอยให้คำปรึกษา
-- อธิบายให้เข้าใจง่าย ไม่ใช้ศัพท์การเงินที่ซับซ้อน
-- เน้นคำแนะนำที่สามารถทำได้จริงในชีวิตประจำวัน
-- ช่วยผู้ใช้มองเห็นวิธีจัดการหนี้และวางแผนการเงินอย่างเป็นขั้นตอน
+  สไตล์การตอบ:
+  - เป็นมิตร เหมือนที่ปรึกษาการเงินส่วนตัว
+  - ใช้ภาษาง่าย ไม่ซับซ้อน
+  - เน้นวิธีทำจริงในชีวิตประจำวัน
+  - ช่วยวางแผนการเงินและลดหนี้อย่างเป็นขั้นตอน
 
-ต่อไปนี้คือข้อมูลทางการเงินของผู้ใช้ ให้วิเคราะห์สถานการณ์และให้คำแนะนำที่เหมาะสมที่สุด
+  ข้อมูลผู้ใช้:
+  age: ${user.age}
+  income: ${income}
+  expense: ${expense}
+  balance: ${balance}
+  total_debt: ${total_debt}
+  total_installment: ${total_installment}
+  I/E ratio: ${ie_ratio}
+  DTI: ${dti}%
+  persona: ${persona}
+  group: ${group}
+  strategy: ${strategy}
 
-ข้อมูลผู้ใช้:
-age: ${user.age}
-income = ${income}
-expense = ${expense}
-balance = ${balance}
-total_debt = ${total_debt}
-total_installment = ${total_installment}
-I/E ratio = ${ie_ratio}
-DTI = ${dti}%
-persona = ${persona}
-group = ${group}
-strategy = ${strategy}
+  กฎสำคัญ:
+  - ถ้า I/E ratio ≤ 1 → ต้องแนะนำให้เพิ่มรายได้
+  - ห้ามเปลี่ยนค่า group เด็ดขาด
+  - ต้องตอบกลับเป็น JSON เท่านั้น
+  - actions ต้องมี 3 ข้อพอดี
+  - benefits ต้องมี 3 ข้อพอดี
+  - ข้อความต้องสั้น กระชับ และนำไปใช้ได้จริง
 
-กฎ:
-- ถ้า I/E ratio ≤ 1 ให้แนะนำเพิ่มรายได้
-- ห้ามเปลี่ยน group
+  การจัดกลุ่มหนี้ (เลือกได้แค่ 1 กลุ่มเท่านั้น):
 
-ตอบกลับเป็น JSON เท่านั้น และต้องทำตามโครงสร้างด้านล่าง
+  1) FULL_CLEARANCE
+  - balance > หนี้ทั้งหมดที่ค้าง
+  - แนะนำ: ปิดหนี้ทั้งหมดทันที
 
-เงื่อนไข:
-- actions ต้องมี 3 ข้อพอดี
-- benefits ต้องมี 3 ข้อพอดี
-- ข้อความต้องสั้น กระชับ และสามารถนำไปปฏิบัติได้จริง
-- ห้ามมีข้อความนอก JSON
+  2) CAN_PREPAY
+  - balance > ยอดหนี้ที่ต้องจ่ายรายเดือน
+  - ดู risk_tier:
+    - low → ใช้ Avalanche method (ปิดหนี้ดอกเบี้ยสูงก่อน)
+    - medium → ใช้ Snowball method (ปิดหนี้ยอดเล็กก่อน)
+    - high → จ่ายขั้นต่ำทุกก้อน
 
-{
-  "financial_status": "...",
-  "group": "${group}",
-  "strategy": "${strategy}",
-  "actions": [
-    "...",
-    "...",
-    "..."
-  ],
-  "recommended_payment": ${recommended_payment},
-  "remaining_monthly_cash": ${remaining_monthly_cash},
-  "benefits": [
-    "...",
-    "...",
-    "..."
-  ]
-}
-`;
+  - ต้องระบุ “หนี้ที่ควรปิดก่อน” อย่างชัดเจน โดยเลือก 1 ก้อนแรกเท่านั้น:
+    - risk_tier = low → เลือกหนี้ที่ “ดอกเบี้ยสูงที่สุด” ก่อน
+    - risk_tier = medium → เลือกหนี้ที่ “ยอดคงค้างน้อยที่สุด” ก่อน
+    - risk_tier = high → ไม่มีหนี้ที่ต้องปิดก่อน ให้จ่ายขั้นต่ำทุกก้อน
+
+  3) CAN_PAY_MINIMUM
+  - balance = ยอดหนี้ที่ต้องจ่ายรายเดือน
+  - แนะนำ: จ่ายขั้นต่ำเท่านั้น
+
+  4) LOAN_ROLLOVER
+  - balance < ยอดหนี้ที่ต้องจ่ายรายเดือน AND total_installment = 1
+  - แนะนำ: เลื่อนชำระหนี้
+
+  รูปแบบ JSON ที่ต้องตอบ:
+  {
+    "financial_status": "",
+    "group": "${group}",
+    "strategy": "${strategy}",
+    "actions": [
+      "",
+      "",
+      ""
+    ],
+    "recommended_payment": ${recommended_payment},
+    "remaining_monthly_cash": ${remaining_monthly_cash},
+    "benefits": [
+      "",
+      "",
+      ""
+    ]
+  }`;
 
   /* ===============================
      5️⃣ CALL GEMINI
