@@ -2,8 +2,7 @@ const express = require("express");
 const router = express.Router();
 const admin = require("firebase-admin");
 
-const db = admin.firestore();
-
+const { db } = require("../firebaseAdmin");
 const { generateFinancialAdvice } = require("../services/aiService");
 
 /* =========================
@@ -11,14 +10,15 @@ const { generateFinancialAdvice } = require("../services/aiService");
 ========================= */
 router.post("/", async (req, res) => {
   try {
-    const { uid } = req.body;
+    const { uid, month } = req.body;
 
-    console.log("🔥 REQUEST UID:", uid);
+    console.log("🔥 REQUEST:", { uid, month });
 
-    if (!uid) {
+    // ✅ validate
+    if (!uid || !month) {
       return res.status(400).json({
         success: false,
-        error: "uid is required",
+        error: "uid and month are required",
       });
     }
 
@@ -37,56 +37,99 @@ router.post("/", async (req, res) => {
 
     const userData = snap.data();
 
-    console.log("📦 USER DATA LOADED");
+    /* =========================
+       2. GET DEBT DATA
+    ========================= */
+    const debtSnap = await db
+      .collection("bnplDebt")
+      .doc(uid)
+      .collection("items")
+      .get();
+
+    let total_debt = 0;
+    let total_installment = 0;
+
+    debtSnap.forEach((doc) => {
+      const d = doc.data();
+      total_debt += Number(d.outstandingDebt || 0);
+      total_installment += Number(d.monthlyInstallment || 0);
+    });
+
+    console.log("📦 USER + DEBT READY");
 
     /* =========================
-       2. GENERATE AI
+       3. GENERATE AI
     ========================= */
     const advice = await generateFinancialAdvice({
       ...userData,
       age: userData.age || 0,
+      total_debt,
+      total_installment,
+      platform_count: debtSnap.size,
     });
-
-    console.log("🤖 AI DONE");
 
     if (!advice) {
       throw new Error("AI returned empty result");
     }
 
-    /* =========================
-       3. SAVE AI RESULT
-    ========================= */
-    console.log("🔥 BEFORE SAVE");
+    console.log("🤖 AI GENERATED");
 
+    /* =========================
+       4. NORMALIZE DATA
+    ========================= */
+    const normalizedAdvice = {
+      ...advice,
+      recommended_payment: Number(advice.recommended_payment || 0),
+      remaining_monthly_cash: Number(advice.remaining_monthly_cash || 0),
+      actions: advice.actions || [],
+      benefits: advice.benefits || [],
+    };
+
+    /* =========================
+       5. SAVE TO FIRESTORE
+    ========================= */
     const recRef = db.collection("recommendation").doc(uid);
 
+    // ✅ latest (dashboard ใช้)
     await recRef.set(
       {
-        latest: advice,
+        latest: normalizedAdvice,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       },
       { merge: true }
     );
 
-    console.log("🔥 AFTER SAVE (LATEST)");
-
+    // ✅ history (เก็บทุกครั้ง)
     await recRef.collection("history").add({
-      ...advice,
+      ...normalizedAdvice,
+      month,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    console.log("🔥 AFTER SAVE (HISTORY)");
+    // ✅ monthly (FIX สำคัญ 🔥)
+    await recRef
+      .collection("monthly")
+      .doc(month) // 🔥 ใช้เดือนจาก frontend
+      .set(
+        {
+          ...normalizedAdvice,
+          month,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, // กัน overwrite
+      );
+
+    console.log("💾 SAVED MONTH:", month);
 
     /* =========================
-       4. RESPONSE
+       6. RESPONSE
     ========================= */
     return res.json({
       success: true,
-      ai: advice,
+      ai: normalizedAdvice,
     });
 
   } catch (err) {
-    console.error("🔥 AI ROUTE ERROR FULL:", err);
+    console.error("🔥 AI ROUTE ERROR:", err);
 
     return res.status(500).json({
       success: false,

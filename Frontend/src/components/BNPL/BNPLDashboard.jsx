@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { 
   collection, 
   query, 
@@ -6,7 +6,8 @@ import {
   orderBy,
   getDoc,
   doc,
-  deleteDoc
+  deleteDoc,
+  updateDoc 
 } from "firebase/firestore";
 
 import { auth, db } from "@/firebase";
@@ -33,138 +34,202 @@ export default function BNPLDashboard() {
   const [dtiHistory, setDtiHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
+  const [userData, setUserData] = useState(null)
+  const debounceRef = useRef(null)
+  const lastPayloadRef = useRef(null)
+  const isFirstLoad = useRef(true)
 
   const toNumber = (val) =>
     typeof val === "number" ? val : parseFloat(val) || 0;
 
   useEffect(() => {
-    let unsubTx = null;
-    let unsubDTI = null;
+  let unsubAuth = null;
+  let unsubUser = null;
+  let unsubTx = null;
+  let unsubDTI = null;
 
-    const unsubAuth = onAuthStateChanged(auth, async (user) => {
-      if (!user) return;
+  unsubAuth = onAuthStateChanged(auth, (user) => {
+    if (!user) return;
 
-      // =============================
-      // USER DATA
-      // =============================
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      const userData = userDoc.data() || {};
-      const summary = userData || {}; // 🔥 ใช้ตรง ๆ ไม่ใช้ summary ซ้อน
+    // =============================
+    // USER (REALTIME)
+    // =============================
+    unsubUser = onSnapshot(
+      doc(db, "users", user.uid),
+      (snap) => {
+        if (snap.exists()) {
+          setUserData(snap.data());
+        }
+      }
+    );
 
-      const spayLimit = userData.spaylater_limit || 0;
-      const lazLimit = userData.lazpaylater_limit || 0;
+    // =============================
+    // TRANSACTIONS (REALTIME)
+    // =============================
+    const qTx = query(
+      collection(db, "bnplDebt", user.uid, "items"),
+      orderBy("createdAt", "desc")
+    );
 
-      // =============================
-      // TRANSACTIONS
-      // =============================
-      const qTx = query(
-        collection(db, "bnplDebt", user.uid, "items"),
-        orderBy("createdAt", "desc")
-      );
+    unsubTx = onSnapshot(qTx, (snap) => {
+      const txMap = new Map();
 
-      unsubTx = onSnapshot(qTx, (snap) => {
-        const txMap = new Map();
+      snap.forEach((docSnap) => {
+        const d = docSnap.data();
 
-        snap.forEach((docSnap) => {
-          const d = docSnap.data();
+    const tx = {
+      id: docSnap.id,
+      productName: d.productName || "-",
+      purchaseDate: d.purchaseDate || "",
+      amount: toNumber(
+        d.outstandingDebt ??
+        d.totalDebt ??
+        d.amount ??
+        0
+      ),
 
-          const tx = {
-            id: docSnap.id,
-            productName: d.productName || "-",
-            purchaseDate: d.purchaseDate || "",
-            amount: toNumber(d.outstandingDebt),
-            platform: (d.provider || "").toLowerCase(),
-            createdAt: d.createdAt?.toDate?.() || new Date(0)
-          };
+      // ✅ FIX
+      monthlyInstallment: toNumber(d.monthlyInstallment || 0),
+      paidAmount: toNumber(d.paidAmount || 0),
+      status: d.status || "active",
 
-          // 🔥 key = สินค้า + วันที่ซื้อ
-          const key = `${tx.productName}_${tx.purchaseDate}`;
+      platform: (d.provider || "").toLowerCase(),
+      createdAt: d.createdAt?.toDate?.() || new Date(0)
+    };
+        const key = `${tx.productName}_${tx.purchaseDate}`;
 
-          if (!txMap.has(key)) {
+        if (!txMap.has(key)) {
+          txMap.set(key, tx);
+        } else {
+          const existing = txMap.get(key);
+          if (tx.createdAt > existing.createdAt) {
             txMap.set(key, tx);
-          } else {
-            const existing = txMap.get(key);
-
-            if (tx.createdAt > existing.createdAt) {
-              txMap.set(key, tx);
-            }
           }
-        });
-
-        // 🔥 final list (dedupe + sort)
-        const finalTx = Array.from(txMap.values())
-          .sort((a, b) => b.createdAt - a.createdAt);
-
-        setTransactions(finalTx);
-
-        // =============================
-        // ✅ FIX: ใช้ finalTx แทน allTx
-        // =============================
-        let spayDebt = 0;
-        let lazDebt = 0;
-
-        finalTx.forEach((tx) => {
-          if (tx.platform.includes("spay")) {
-            spayDebt += tx.amount;
-          } else if (tx.platform.includes("laz")) {
-            lazDebt += tx.amount;
-          }
-        });
-
-        const totalDebt = spayDebt + lazDebt;
-
-        setData({
-          outstanding: totalDebt,
-          utilization:
-            totalDebt > 0
-              ? ((totalDebt / (spayLimit + lazLimit)) * 100)
-              : 0,
-          available:
-            spayLimit + lazLimit - totalDebt,
-
-          spayLimit,
-          lazLimit,
-          spayDebt,
-          lazDebt
-        });
-
-        setLoading(false);
+        }
       });
 
-      // =============================
-      // DTI HISTORY
-      // =============================
-      const qDTI = query(
-        collection(db, "DTI", user.uid, "history")
-      );
+      const finalTx = Array.from(txMap.values())
+        .sort((a, b) => b.createdAt - a.createdAt);
 
-      unsubDTI = onSnapshot(qDTI, (snap) => {
-        const history = [];
-
-        snap.forEach((docSnap) => {
-          const d = docSnap.data();
-
-          history.push({
-            date: d.createdAt?.toDate?.() || new Date(),
-            dti: (d.installment_to_income || 0) * 100,
-          });
-        });
-
-        history.sort((a, b) => a.date - b.date);
-        setDtiHistory(history);
-      });
+      setTransactions(finalTx);
     });
 
-    return () => {
-      unsubAuth();
-      if (unsubTx) unsubTx();
-      if (unsubDTI) unsubDTI();
-    };
-  }, []);
+    // =============================
+    // DTI HISTORY
+    // =============================
+    const qDTI = query(
+      collection(db, "DTI", user.uid, "history")
+    );
 
-  if (loading || !data)
-    return <div className="p-8 text-lg">Loading...</div>;
+    unsubDTI = onSnapshot(qDTI, (snap) => {
+      const history = [];
 
+      snap.forEach((docSnap) => {
+        const d = docSnap.data();
+
+        history.push({
+          date: d.createdAt?.toDate?.() || new Date(),
+          dti: (d.installment_to_income || 0) * 100,
+        });
+      });
+
+      history.sort((a, b) => a.date - b.date);
+      setDtiHistory(history);
+    });
+  });
+
+  return () => {
+    if (unsubAuth) unsubAuth();
+    if (unsubUser) unsubUser();
+    if (unsubTx) unsubTx();
+    if (unsubDTI) unsubDTI();
+  };
+}, []);
+
+  useEffect(() => {
+  if (!userData) return;
+
+  let spayDebt = 0;
+  let lazDebt = 0;
+
+  transactions.forEach((tx) => {
+    if (tx.platform.includes("spay")) {
+      spayDebt += tx.amount;
+    } else if (tx.platform.includes("laz")) {
+      lazDebt += tx.amount;
+    }
+  });
+
+  const totalDebt = spayDebt + lazDebt;
+
+  const spayLimit = userData.spaylater_limit || 0;
+  const lazLimit = userData.lazpaylater_limit || 0;
+  const totalLimit = spayLimit + lazLimit;
+
+  console.log("🔥 RECOMPUTE:", {
+    transactions,
+    totalDebt
+  });
+
+  setData({
+    outstanding: totalDebt,
+    utilization:
+      totalLimit > 0
+        ? (totalDebt / totalLimit) * 100
+        : 0,
+    available: totalLimit - totalDebt,
+
+    spayLimit,
+    lazLimit,
+    spayDebt,
+    lazDebt
+  });
+
+  setLoading(false);
+
+}, [userData, JSON.stringify(transactions)]);
+
+if (loading)
+  return <div className="p-8 text-lg">Loading...</div>;
+
+    const currentDTI = userData?.income
+    ? (data.outstanding / userData.income) * 100
+    : 0;
+
+    const mergedDTI = [
+    ...dtiHistory,
+    {
+      date: new Date(),
+      dti: currentDTI,
+      isCurrent: true,
+    },
+  ];
+
+  const renderDot = (props) => {
+  const { cx, cy, payload } = props;
+
+  if (payload.isCurrent) {
+    return (
+      <circle
+        cx={cx}
+        cy={cy}
+        r={6}
+        fill="#EF4444"
+        stroke="#fff"
+        strokeWidth={2}
+      />
+    );
+  }
+
+  return (
+    <circle
+      cx={cx}
+      cy={cy}
+      r={3}
+      fill="#8884d8"
+    />
+  );
+};
   // =============================
   // BAR DATA
   // =============================
@@ -190,16 +255,33 @@ export default function BNPLDashboard() {
     );
     if (!confirmDelete) return;
 
+          const getCurrentMonth = () => {
+      const now = new Date();
+      const thai = new Date(
+        now.toLocaleString("en-US", { timeZone: "Asia/Bangkok" })
+      );
+
+      return `${thai.getFullYear()}-${String(
+        thai.getMonth() + 1
+      ).padStart(2, "0")}`;
+    };
+
+
     try {
       await deleteDoc(doc(db, "bnplDebt", user.uid, "items", txId));
 
+      setTransactions((prev) => prev.filter(tx => tx.id !== txId));
+
       await fetch("http://localhost:5000/api/calculate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ uid: user.uid }),
-      });
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        uid: user.uid,
+        month: getCurrentMonth(), // ✅ เพิ่มตรงนี้
+      }),
+    });
     } catch (err) {
       console.error("Delete transaction failed:", err);
       alert("ไม่สามารถลบรายการได้ กรุณาลองใหม่");
@@ -264,7 +346,7 @@ export default function BNPLDashboard() {
           </h2>
 
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={dtiHistory}>
+            <LineChart data={mergedDTI}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
                 dataKey="date"
@@ -274,13 +356,14 @@ export default function BNPLDashboard() {
               />
               <YAxis />
               <Tooltip
-                formatter={(value) => `${value.toFixed(0)}%`}
+                formatter={(value) => [`${Number(value).toFixed(1)}%`, "DTI"]}
               />
               <Line
                 type="monotone"
                 dataKey="dti"
                 stroke="#8884d8"
                 strokeWidth={3}
+                dot={renderDot}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -315,42 +398,170 @@ export default function BNPLDashboard() {
           ))}
         </div>
 
-        <div className="max-h-[380px] overflow-y-auto">
-          {/* 🔥 LIST */}
-          {filteredTransactions.length === 0 ? (
-            <p className="text-gray-500">No transactions</p>
-          ) : (
-            filteredTransactions.map((tx) => (
-              <div
-                key={tx.id}
-                className="flex justify-between border-b py-2 items-center gap-3"
-              >
-                <div>
-                  <p className="font-semibold">
-                    {tx.productName}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    {tx.platform}
-                  </p>
-                </div>
+<div className="max-h-[380px] overflow-y-auto">
+  {/* 🔥 LIST */}
+  {filteredTransactions.length === 0 ? (
+    <p className="text-gray-500">No transactions</p>
+  ) : (
+    filteredTransactions.map((tx) => {
 
-                <div className="flex items-center gap-4">
-                  <p className="font-bold">
-                    {tx.amount.toLocaleString()} Baht
-                  </p>
-                  <button
-                    onClick={() => handleDeleteTransaction(tx.id)}
-                    className="text-sm text-red-600 hover:text-red-800"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
+      const status =
+  tx.status || (tx.amount === 0 ? "paid" : "active");
+
+      return (
+        <div
+          key={tx.id}
+          className="flex justify-between border-b py-3 items-center gap-3"
+        >
+
+          {/* LEFT */}
+          <div>
+            <p className="font-semibold">
+              {tx.productName}
+            </p>
+
+            <p className="text-sm text-gray-500">
+              {tx.platform}
+            </p>
+
+            {/* 🔥 STATUS */}
+            <p
+              className={`text-xs mt-1 ${
+                status === "paid"
+                  ? "text-green-600"
+                  : "text-gray-500"
+              }`}
+            >
+              {status}
+            </p>
+          </div>
+
+          {/* RIGHT */}
+          <div className="flex flex-col items-end gap-2">
+
+            <p className="font-bold">
+              {tx.amount.toLocaleString()} Baht
+            </p>
+
+            {/* 🔥 ACTION BUTTONS */}
+            <div className="relative">
+  <div className="relative">
+  {tx.amount === 0 ? (
+    // 🔥 SHOW DELETE BUTTON
+    <button
+      onClick={() => handleDeleteTransaction(tx.id)}
+      className="text-xs text-red-500 hover:text-red-600"
+    >
+      Delete
+    </button>
+  ) : (
+    // 🔥 SHOW DROPDOWN (เหมือนเดิม)
+<div className="relative">
+  {tx.amount === 0 ? (
+    // 🔥 SHOW DELETE BUTTON
+    <button
+      onClick={() => handleDeleteTransaction(tx.id)}
+      className="text-xs bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
+    >
+      Delete
+    </button>
+  ) : (
+    // 🔥 SHOW DROPDOWN (เหมือนเดิม)
+    <select
+      onChange={async (e) => {
+        const action = e.target.value;
+        if (!action) return;
+
+        const user = auth.currentUser;
+        if (!user) return;
+
+        let amount = 0;
+
+        if (action === "min") {
+          amount = tx.monthlyInstallment || 0;
+
+          const newOutstanding = Math.max(0, tx.amount - amount);
+
+          await updateDoc(
+            doc(db, "bnplDebt", user.uid, "items", tx.id),
+            {
+              outstandingDebt: newOutstanding,
+              paidAmount: (tx.paidAmount || 0) + amount,
+              remainingInstallments: Math.max(
+                0,
+                (tx.remainingInstallments || 1) - 1
+              ),
+              status: newOutstanding === 0 ? "paid" : "active",
+            }
+          );
+        }
+
+        if (action === "extra") {
+          amount = Number(prompt("Enter amount"));
+          if (!amount || amount <= 0) return;
+        }
+
+        if (action === "full") {
+          amount = tx.amount;
+        }
+
+        if (action === "postpone") {
+          await updateDoc(
+            doc(db, "bnplDebt", user.uid, "items", tx.id),
+            { status: "postponed" }
+          );
+
+          await fetch("http://localhost:5000/api/calculate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ uid: user.uid }),
+          });
+
+          e.target.value = "";
+          return;
+        }
+
+        const newOutstanding = Math.max(0, tx.amount - amount);
+
+        await updateDoc(
+          doc(db, "bnplDebt", user.uid, "items", tx.id),
+          {
+            outstandingDebt: newOutstanding,
+            paidAmount: (tx.paidAmount || 0) + amount,
+            status: newOutstanding === 0 ? "paid" : "active",
+          }
+        );
+
+        await fetch("http://localhost:5000/api/calculate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ uid: user.uid }),
+        });
+
+        e.target.value = "";
+      }}
+      className="text-xs border rounded px-2 py-1"
+      defaultValue=""
+    >
+      <option value="" disabled>Pay</option>
+      <option value="min">Pay Minimum</option>
+      <option value="extra">Pay Extra</option>
+      <option value="full">Full Payment</option>
+      <option value="postpone">Postpone</option>
+    </select>
+  )}
+</div>
+  )}
+</div>
+</div>
+          </div>
+          
         </div>
+      );
+    } )
+  )}
+</div>
       </div>
-
     </div>
   );
 }

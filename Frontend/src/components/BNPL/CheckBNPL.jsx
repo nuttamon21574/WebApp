@@ -194,6 +194,7 @@ export default function CheckBNPL({ contracts = [], onSave }) {
             <Field label="Total Installments" value={contract.totalInstallments} />
             <Field label="Annual Interest Rate" value={`${contract.annualInterestRate || 0}%`} />
             <Field label="Payment Date" value={contract.purchaseDate} />
+            <Field label="Due Date" value={contract.dueDate} />
           </div>
         </div>
       ))}

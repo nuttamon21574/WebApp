@@ -11,6 +11,23 @@ function toNumber(value) {
   return isNaN(num) ? 0 : num;
 }
 
+/* =========================
+   🔥 FIX: THAI MONTH
+========================= */
+function getThaiMonthKey() {
+  const now = new Date();
+  const thai = new Date(
+    now.toLocaleString("en-US", { timeZone: "Asia/Bangkok" })
+  );
+
+  return `${thai.getFullYear()}-${String(
+    thai.getMonth() + 1
+  ).padStart(2, "0")}`;
+}
+
+/* =========================
+   DATE UTILS
+========================= */
 function buildDate(year, month, day) {
   if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
     return null;
@@ -29,94 +46,70 @@ function buildDate(year, month, day) {
 }
 
 function parseDateString(value) {
-  if (!value || typeof value !== "string") {
-    return null;
-  }
+  if (!value || typeof value !== "string") return null;
 
   const normalized = value.trim();
-  const isoMatch = normalized.match(/^\d{4}-\d{2}-\d{2}$/);
-  if (isoMatch) {
-    const [year, month, day] = normalized.split("-").map(Number);
-    return buildDate(year, month, day);
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    const [y, m, d] = normalized.split("-").map(Number);
+    return buildDate(y, m, d);
   }
 
-  const parts = normalized.split(/[\/\-.]/).map((part) => part.trim());
-  if (parts.length !== 3) {
-    return null;
-  }
+  const parts = normalized.split(/[\/\-.]/).map((p) => p.trim());
+  if (parts.length !== 3) return null;
 
-  const [first, second, third] = parts;
-  const yearFirst = first.length === 4;
-  const guessYear = Number(third);
+  const [a, b, c] = parts;
 
-  if (yearFirst) {
-    return buildDate(Number(first), Number(second), Number(third));
-  }
+  if (a.length === 4) return buildDate(Number(a), Number(b), Number(c));
 
-  if (Number(first) > 12) {
-    return buildDate(guessYear, Number(second), Number(first));
-  }
+  if (Number(a) > 12) return buildDate(Number(c), Number(b), Number(a));
 
-  const dayFirstCandidate = buildDate(guessYear, Number(second), Number(first));
-  if (dayFirstCandidate) {
-    return dayFirstCandidate;
-  }
-
-  return buildDate(guessYear, Number(first), Number(second));
+  return buildDate(Number(c), Number(a), Number(b));
 }
 
 function calculateDaysOverdue(dueDateStr, now = new Date()) {
   const dueDate = parseDateString(dueDateStr);
-  if (!dueDate) {
-    return 0;
-  }
+  if (!dueDate) return 0;
 
   dueDate.setHours(0, 0, 0, 0);
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const diffMs = today.getTime() - dueDate.getTime();
-  const oneDayMs = 24 * 60 * 60 * 1000;
-  return diffMs > 0 ? Math.floor(diffMs / oneDayMs) : 0;
+
+  const diff = today - dueDate;
+  const oneDay = 86400000;
+
+  return diff > 0 ? Math.floor(diff / oneDay) : 0;
 }
 
 /* =========================
-   MAIN CALC
+   CALC SINGLE ITEM
 ========================= */
 async function calculateAndSaveBNPL(uid, itemId) {
-  if (!uid || !itemId) {
-    throw new Error("Missing uid or itemId");
-  }
+  const ref = db.collection("bnplDebt").doc(uid).collection("items").doc(itemId);
+  const snap = await ref.get();
 
-  const itemRef = db.collection("bnplDebt").doc(uid).collection("items").doc(itemId);
-  const snap = await itemRef.get();
-
-  if (!snap.exists) {
-    console.log("❌ ITEM NOT FOUND:", uid, itemId);
-    throw new Error("Item not found in Firestore");
-  }
+  if (!snap.exists) throw new Error("Item not found");
 
   const data = snap.data();
+
   const overdueDays = calculateDaysOverdue(data.dueDate);
   const isOverdue = overdueDays > 0;
 
   if (data.overdueDays !== overdueDays || data.isOverdue !== isOverdue) {
-    await itemRef.update({
+    await ref.update({
       overdueDays,
       isOverdue,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
   }
 
-  return {
-    ...data,
-    overdueDays,
-    isOverdue,
-  };
+  return { ...data, overdueDays, isOverdue };
 }
 
-
+/* =========================
+   CALC TOTAL
+========================= */
 async function calculateTotalBNPL(uid) {
-  const itemsRef = db.collection("bnplDebt").doc(uid).collection("items");
-  const snap = await itemsRef.get();
+  const snap = await db.collection("bnplDebt").doc(uid).collection("items").get();
 
   let totalDebt = 0;
   let totalOutstanding = 0;
@@ -124,12 +117,10 @@ async function calculateTotalBNPL(uid) {
 
   let lazpaylater_monthly_installment = 0;
   let lazpaylater_outstanding_debt = 0;
-  let lazpaylater_original_debt = 0;
   let lazpaylater_selected_terms = 0;
 
   let spaylater_monthly_installment = 0;
   let spaylater_outstanding_debt = 0;
-  let spaylater_original_debt = 0;
   let spaylater_selected_terms = 0;
 
   let bnpl_overdue_count = 0;
@@ -137,26 +128,20 @@ async function calculateTotalBNPL(uid) {
   let bnpl_overdue_max_days = 0;
   let bnpl_overdue_total_days = 0;
 
-  const overdueUpdates = [];
+  const updates = [];
 
   snap.forEach((doc) => {
     const d = doc.data();
 
-    totalDebt += Number(d.totalDebt || 0);
-    totalOutstanding += Number(d.outstandingDebt || 0);
-    totalMonthly += Number(d.monthlyInstallment || 0);
-
-    const provider = (d.provider || "").toLowerCase();
-    const installments = toNumber(d.totalInstallments);
-    const originalDebt = toNumber(d.totalDebt);
-    const outstandingDebt = toNumber(d.outstandingDebt);
-    const monthlyInstallment = toNumber(d.monthlyInstallment);
+    totalDebt += toNumber(d.totalDebt);
+    totalOutstanding += toNumber(d.outstandingDebt);
+    totalMonthly += toNumber(d.monthlyInstallment);
 
     const overdueDays = calculateDaysOverdue(d.dueDate);
     const isOverdue = overdueDays > 0;
 
     if (d.overdueDays !== overdueDays || d.isOverdue !== isOverdue) {
-      overdueUpdates.push(
+      updates.push(
         doc.ref.update({
           overdueDays,
           isOverdue,
@@ -166,30 +151,34 @@ async function calculateTotalBNPL(uid) {
     }
 
     if (isOverdue) {
-      bnpl_overdue_count += 1;
-      bnpl_overdue_amount += outstandingDebt;
+      bnpl_overdue_count++;
+      bnpl_overdue_amount += toNumber(d.outstandingDebt);
       bnpl_overdue_total_days += overdueDays;
       bnpl_overdue_max_days = Math.max(bnpl_overdue_max_days, overdueDays);
     }
 
+    const provider = (d.provider || "").toLowerCase();
+
     if (provider.includes("laz")) {
-      lazpaylater_monthly_installment += monthlyInstallment;
-      lazpaylater_outstanding_debt += outstandingDebt;
-      lazpaylater_original_debt += originalDebt;
-      lazpaylater_selected_terms = Math.max(lazpaylater_selected_terms, installments);
+      lazpaylater_monthly_installment += toNumber(d.monthlyInstallment);
+      lazpaylater_outstanding_debt += toNumber(d.outstandingDebt);
+      lazpaylater_selected_terms = Math.max(
+        lazpaylater_selected_terms,
+        toNumber(d.totalInstallments)
+      );
     }
 
     if (provider.includes("spay")) {
-      spaylater_monthly_installment += monthlyInstallment;
-      spaylater_outstanding_debt += outstandingDebt;
-      spaylater_original_debt += originalDebt;
-      spaylater_selected_terms = Math.max(spaylater_selected_terms, installments);
+      spaylater_monthly_installment += toNumber(d.monthlyInstallment);
+      spaylater_outstanding_debt += toNumber(d.outstandingDebt);
+      spaylater_selected_terms = Math.max(
+        spaylater_selected_terms,
+        toNumber(d.totalInstallments)
+      );
     }
   });
 
-  if (overdueUpdates.length > 0) {
-    await Promise.all(overdueUpdates);
-  }
+  if (updates.length) await Promise.all(updates);
 
   const updateData = {
     bnpl_total_debt: totalDebt,
@@ -201,28 +190,20 @@ async function calculateTotalBNPL(uid) {
     bnpl_overdue_total_days,
     bnpl_overdue_average_days:
       bnpl_overdue_count > 0
-        ? Math.round((bnpl_overdue_total_days / bnpl_overdue_count) * 100) / 100
+        ? bnpl_overdue_total_days / bnpl_overdue_count
         : 0,
     lazpaylater_monthly_installment,
     lazpaylater_outstanding_debt,
-    lazpaylater_original_debt,
     lazpaylater_selected_terms,
     spaylater_monthly_installment,
     spaylater_outstanding_debt,
-    spaylater_original_debt,
     spaylater_selected_terms,
   };
 
   await db.collection("users").doc(uid).set(updateData, { merge: true });
 
-  return {
-    totalDebt,
-    totalOutstanding,
-    totalMonthly,
-    ...updateData,
-  };
+  return updateData;
 }
-
 
 /* =========================
    ROUTE
@@ -232,13 +213,7 @@ router.post("/", async (req, res) => {
     console.log("🔥 BODY:", req.body);
 
     const { uid, itemId } = req.body;
-
-    if (!uid) {
-      return res.status(400).json({
-        success: false,
-        error: "uid is required",
-      });
-    }
+    if (!uid) throw new Error("uid required");
 
     if (itemId) {
       await calculateAndSaveBNPL(uid, itemId);
@@ -246,13 +221,21 @@ router.post("/", async (req, res) => {
 
     const total = await calculateTotalBNPL(uid);
 
+    // 🔥 FIX สำคัญ: ส่ง month ไป financial
+    const month = getThaiMonthKey();
+
     await fetch("http://localhost:5000/api/financial", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ uid }),
+      body: JSON.stringify({
+        uid,
+        month, // ✅ FIX
+      }),
     });
+
+    console.log("🔥 SENT TO FINANCIAL:", month);
 
     res.json({
       success: true,
