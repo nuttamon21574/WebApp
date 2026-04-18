@@ -135,7 +135,7 @@ router.post("/", async (req, res) => {
     const userData = snap.data();
 
     // 3️⃣ GENERATE AI
-    const advice = await generateFinancialAdvice({
+    /*const advice = await generateFinancialAdvice({
       ...userData,
       ...calcResult,
       age: userData.age || 0,
@@ -171,13 +171,13 @@ router.post("/", async (req, res) => {
       ...advice,
       month,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    });*/
 
     console.log("✅ Saved to Firebase");
 
     res.json({
       success: true,
-      ai: advice,
+      data: calcResult,
     });
 
   } catch (err) {
