@@ -156,7 +156,9 @@ const handleSave = async () => {
 
     }
 
-    await fetch("http://localhost:5000/api/calculate", {
+    const API_URL = "https://webapp-osky.onrender.com";
+
+    await fetch(`${API_URL}/api/calculate`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -190,7 +192,7 @@ const handleSave = async () => {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-6 text-sm items-stretch">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm items-stretch">
             <TextField
               label="Product Name"
               name="productName"
