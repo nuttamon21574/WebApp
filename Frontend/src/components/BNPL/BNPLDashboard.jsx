@@ -401,32 +401,28 @@ if (loading)
         </div>
 
 <div className="max-h-[380px] overflow-y-auto">
-  {/* 🔥 LIST */}
   {filteredTransactions.length === 0 ? (
     <p className="text-gray-500">No transactions</p>
   ) : (
     filteredTransactions.map((tx) => {
-
       const status =
-  tx.status || (tx.amount === 0 ? "paid" : "active");
+        tx.status || (tx.amount === 0 ? "paid" : "active");
 
       return (
         <div
           key={tx.id}
-          className="flex justify-between border-b py-3 items-center gap-3"
+          className="grid grid-cols-1 md:grid-cols-3 gap-3 border-b py-3 items-center"
         >
-
           {/* LEFT */}
-          <div>
-            <p className="font-semibold">
+          <div className="md:col-span-2">
+            <p className="font-semibold truncate">
               {tx.productName}
             </p>
 
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 truncate">
               {tx.platform}
             </p>
 
-            {/* 🔥 STATUS */}
             <p
               className={`text-xs mt-1 ${
                 status === "paid"
@@ -439,132 +435,97 @@ if (loading)
           </div>
 
           {/* RIGHT */}
-          <div className="flex justify-between border-b py-3 items-center gap-3">
-
-            <p className="font-bold">
+          <div className="flex md:flex-col md:items-end justify-between md:justify-center gap-2">
+            
+            <p className="font-bold whitespace-nowrap">
               {tx.amount.toLocaleString()} Baht
             </p>
 
-            {/* 🔥 ACTION BUTTONS */}
-            <div className="relative">
-  <div className="relative">
-  {tx.amount === 0 ? (
-    // 🔥 SHOW DELETE BUTTON
-    <button
-      onClick={() => handleDeleteTransaction(tx.id)}
-      className="text-xs text-red-500 hover:text-red-600"
-    >
-      Delete
-    </button>
-  ) : (
-    // 🔥 SHOW DROPDOWN (เหมือนเดิม)
-<div className="relative">
-  {tx.amount === 0 ? (
-    // 🔥 SHOW DELETE BUTTON
-    <button
-      onClick={() => handleDeleteTransaction(tx.id)}
-      className="text-xs bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
-    >
-      Delete
-    </button>
-  ) : (
-    // 🔥 SHOW DROPDOWN (เหมือนเดิม)
-    <select
-      onChange={async (e) => {
-        const action = e.target.value;
-        if (!action) return;
+            {/* ACTION */}
+            <div className="flex justify-end">
+              {tx.amount === 0 ? (
+                <button
+                  onClick={() => handleDeleteTransaction(tx.id)}
+                  className="text-xs text-red-500 hover:text-red-600"
+                >
+                  Delete
+                </button>
+              ) : (
+                <select
+                  onChange={async (e) => {
+                    const action = e.target.value;
+                    if (!action) return;
 
-        const user = auth.currentUser;
-        if (!user) return;
+                    const user = auth.currentUser;
+                    if (!user) return;
 
-        let amount = 0;
+                    let amount = 0;
 
-        if (action === "min") {
-          amount = tx.monthlyInstallment || 0;
+                    if (action === "min") {
+                      amount = tx.monthlyInstallment || 0;
+                    }
 
-          const newOutstanding = Math.max(0, tx.amount - amount);
+                    if (action === "extra") {
+                      amount = Number(prompt("Enter amount"));
+                      if (!amount || amount <= 0) return;
+                    }
 
-          await updateDoc(
-            doc(db, "bnplDebt", user.uid, "items", tx.id),
-            {
-              outstandingDebt: newOutstanding,
-              paidAmount: (tx.paidAmount || 0) + amount,
-              remainingInstallments: Math.max(
-                0,
-                (tx.remainingInstallments || 1) - 1
-              ),
-              status: newOutstanding === 0 ? "paid" : "active",
-            }
-          );
-        }
+                    if (action === "full") {
+                      amount = tx.amount;
+                    }
 
-        if (action === "extra") {
-          amount = Number(prompt("Enter amount"));
-          if (!amount || amount <= 0) return;
-        }
+                    if (action === "postpone") {
+                      await updateDoc(
+                        doc(db, "bnplDebt", user.uid, "items", tx.id),
+                        { status: "postponed" }
+                      );
 
-        if (action === "full") {
-          amount = tx.amount;
-        }
+                      await fetch("http://localhost:5000/api/calculate", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ uid: user.uid }),
+                      });
 
-        if (action === "postpone") {
-          await updateDoc(
-            doc(db, "bnplDebt", user.uid, "items", tx.id),
-            { status: "postponed" }
-          );
+                      e.target.value = "";
+                      return;
+                    }
 
-          const API_URL = "https://webapp-osky.onrender.com";
+                    const newOutstanding = Math.max(0, tx.amount - amount);
 
-          await fetch(`${API_URL}/api/calculate`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ uid: user.uid }),
-          });
+                    await updateDoc(
+                      doc(db, "bnplDebt", user.uid, "items", tx.id),
+                      {
+                        outstandingDebt: newOutstanding,
+                        paidAmount: (tx.paidAmount || 0) + amount,
+                        status: newOutstanding === 0 ? "paid" : "active",
+                      }
+                    );
 
-          e.target.value = "";
-          return;
-        }
+                    await fetch("http://localhost:5000/api/calculate", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ uid: user.uid }),
+                    });
 
-        const newOutstanding = Math.max(0, tx.amount - amount);
-
-        await updateDoc(
-          doc(db, "bnplDebt", user.uid, "items", tx.id),
-          {
-            outstandingDebt: newOutstanding,
-            paidAmount: (tx.paidAmount || 0) + amount,
-            status: newOutstanding === 0 ? "paid" : "active",
-          }
-        );
-
-        const API_URL = "https://webapp-osky.onrender.com";
-
-        await fetch(`${API_URL}/api/calculate`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ uid: user.uid }),
-        });
-
-        e.target.value = "";
-      }}
-      className="text-xs border rounded px-2 py-1"
-      defaultValue=""
-    >
-      <option value="" disabled>Pay</option>
-      <option value="min">Pay Minimum</option>
-      <option value="extra">Pay Extra</option>
-      <option value="full">Full Payment</option>
-      <option value="postpone">Postpone</option>
-    </select>
-  )}
-</div>
-  )}
-</div>
-</div>
+                    e.target.value = "";
+                  }}
+                  className="text-xs border rounded px-2 py-1"
+                  defaultValue=""
+                >
+                  <option value="" disabled>
+                    Pay
+                  </option>
+                  <option value="min">Pay Minimum</option>
+                  <option value="extra">Pay Extra</option>
+                  <option value="full">Full Payment</option>
+                  <option value="postpone">Postpone</option>
+                </select>
+              )}
+            </div>
           </div>
-          
         </div>
       );
-    } )
+    })
   )}
 </div>
       </div>
