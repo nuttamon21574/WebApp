@@ -9,6 +9,7 @@ import {
   serverTimestamp
 } from "firebase/firestore";
 
+
 async function saveOrUpdateBNPL(uid, contracts, db) {
   const dbRef = collection(db, "bnplDebt", uid, "items");
 
@@ -83,7 +84,9 @@ async function saveOrUpdateBNPL(uid, contracts, db) {
     // =========================
     // 🔥 CALL BACKEND (FIXED)
     // =========================
-    await fetch("http://localhost:5000/api/calculate", {
+    const API_URL = import.meta.env.VITE_API_URL;
+
+    await fetch(`${API_URL}/api/calculate`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

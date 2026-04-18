@@ -224,7 +224,9 @@ router.post("/", async (req, res) => {
     // 🔥 FIX สำคัญ: ส่ง month ไป financial
     const month = getThaiMonthKey();
 
-    await fetch("http://localhost:5000/api/financial", {
+    const API_URL = import.meta.env.VITE_API_URL;
+
+    await fetch(`${API_URL}/api/financial`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

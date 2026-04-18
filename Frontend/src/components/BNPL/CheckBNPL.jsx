@@ -156,7 +156,9 @@ export default function CheckBNPL({ contracts = [], onSave }) {
       // ======================
       // 🔥 CALL BACKEND ONCE
       // ======================
-      await fetch("http://localhost:5000/api/calculate", {
+      const API_URL = import.meta.env.VITE_API_URL;
+
+      await fetch(`${API_URL}/api/calculate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

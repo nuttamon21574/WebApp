@@ -2,7 +2,6 @@ require("dotenv").config();
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-console.log("GEMINI KEY:", process.env.GEMINI_API_KEY);
 console.log("GEMINI KEY:", GEMINI_API_KEY ? "Loaded ✅" : "Missing ❌");
 
 const express = require("express");
@@ -15,20 +14,18 @@ const admin = require("firebase-admin");
 let credential;
 
 if (process.env.FIREBASE_PRIVATE_KEY) {
-  // Production (Render)
   console.log("Using Production Firebase Credentials");
 
   credential = admin.credential.cert({
     projectId: process.env.FB_PROJECT_ID,
     clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
     privateKey: process.env.FIREBASE_PRIVATE_KEY
-      .replace(/\\n/g, "\n")   // 🔥 แก้ตรงนี้ (สำคัญสุด)
-      .replace(/\\r/g, "")     // 🔥 กัน Windows newline
-      .trim(),                // 🔥 กัน space แอบ
+      .replace(/\\n/g, "\n")
+      .replace(/\\r/g, "")
+      .trim(),
   });
 
 } else {
-  // Local
   console.log("Using Local Firebase Credentials");
 
   const serviceAccount = require("./serviceAccountKey.json");
@@ -41,11 +38,14 @@ admin.initializeApp({ credential });
 
 const app = express();
 
+/* 🔥 แก้ CORS ให้ใช้ได้ทั้ง dev + prod */
 app.use(cors({
   origin: [
     "http://localhost:5173",
+    process.env.FRONTEND_URL   // 👉 ใส่ URL frontend ใน Render ENV
   ],
-  methods: ["GET", "POST"],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
 }));
 
 app.use(express.json());
@@ -54,7 +54,6 @@ app.use(fileUpload());
 /* ================= TEST ROUTE ================= */
 
 app.get("/", (req, res) => {
-  console.log("Root API hit");
   res.send("Server running 🚀");
 });
 
@@ -82,9 +81,9 @@ console.log("Routes loaded ✅");
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log("=================================");
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`AI endpoint → http://localhost:${PORT}/api/ai/generate`);
+  console.log(`🌍 Base URL → https://your-backend.onrender.com`);
   console.log("=================================");
-}); 
+});

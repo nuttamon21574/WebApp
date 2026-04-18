@@ -57,7 +57,8 @@ export default function UploadPDF({ provider }) {
 
     if (deletePromises.length > 0) {
       await Promise.all(deletePromises);
-      await fetch("http://localhost:5000/api/calculate", {
+      const API_URL = import.meta.env.VITE_API_URL;
+      await fetch(`${API_URL}/api/calculate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -90,7 +91,8 @@ export default function UploadPDF({ provider }) {
     formData.append("password", password);
 
     try {
-      const res = await fetch("http://localhost:5000/api", {
+      const API_URL = import.meta.env.VITE_API_URL;
+      const res = await fetch(`${API_URL}/api`, {
         method: "POST",
         body: formData,
       });

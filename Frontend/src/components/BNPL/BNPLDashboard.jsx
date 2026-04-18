@@ -272,11 +272,13 @@ if (loading)
 
       setTransactions((prev) => prev.filter(tx => tx.id !== txId));
 
-      await fetch("http://localhost:5000/api/calculate", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      const API_URL = import.meta.env.VITE_API_URL;
+
+      await fetch(`${API_URL}/api/calculate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
       body: JSON.stringify({
         uid: user.uid,
         month: getCurrentMonth(), // ✅ เพิ่มตรงนี้
@@ -511,7 +513,9 @@ if (loading)
             { status: "postponed" }
           );
 
-          await fetch("http://localhost:5000/api/calculate", {
+          const API_URL = import.meta.env.VITE_API_URL;
+
+          await fetch(`${API_URL}/api/calculate`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ uid: user.uid }),
@@ -532,7 +536,9 @@ if (loading)
           }
         );
 
-        await fetch("http://localhost:5000/api/calculate", {
+        const API_URL = import.meta.env.VITE_API_URL;
+
+        await fetch(`${API_URL}/api/calculate`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ uid: user.uid }),
