@@ -224,7 +224,7 @@ router.post("/", async (req, res) => {
     // 🔥 FIX สำคัญ: ส่ง month ไป financial
     const month = getThaiMonthKey();
 
-    const API_URL = import.meta.env.VITE_API_URL;
+    const API_URL = "https://webapp-osky.onrender.com";
 
     await fetch(`${API_URL}/api/financial`, {
       method: "POST",

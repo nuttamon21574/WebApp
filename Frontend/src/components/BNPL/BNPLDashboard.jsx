@@ -272,7 +272,7 @@ if (loading)
 
       setTransactions((prev) => prev.filter(tx => tx.id !== txId));
 
-      const API_URL = import.meta.env.VITE_API_URL;
+      const API_URL = "https://webapp-osky.onrender.com";
 
       await fetch(`${API_URL}/api/calculate`, {
         method: "POST",
@@ -513,7 +513,7 @@ if (loading)
             { status: "postponed" }
           );
 
-          const API_URL = import.meta.env.VITE_API_URL;
+          const API_URL = "https://webapp-osky.onrender.com";
 
           await fetch(`${API_URL}/api/calculate`, {
             method: "POST",
@@ -536,7 +536,7 @@ if (loading)
           }
         );
 
-        const API_URL = import.meta.env.VITE_API_URL;
+        const API_URL = "https://webapp-osky.onrender.com";
 
         await fetch(`${API_URL}/api/calculate`, {
           method: "POST",

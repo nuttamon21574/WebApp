@@ -57,7 +57,7 @@ export default function UploadPDF({ provider }) {
 
     if (deletePromises.length > 0) {
       await Promise.all(deletePromises);
-      const API_URL = import.meta.env.VITE_API_URL;
+      const API_URL = "https://webapp-osky.onrender.com";
       await fetch(`${API_URL}/api/calculate`, {
         method: "POST",
         headers: {
@@ -91,7 +91,7 @@ export default function UploadPDF({ provider }) {
     formData.append("password", password);
 
     try {
-      const API_URL = import.meta.env.VITE_API_URL;
+      const API_URL = "https://webapp-osky.onrender.com";
       const res = await fetch(`${API_URL}/api`, {
         method: "POST",
         body: formData,

@@ -156,7 +156,7 @@ export default function CheckBNPL({ contracts = [], onSave }) {
       // ======================
       // 🔥 CALL BACKEND ONCE
       // ======================
-      const API_URL = import.meta.env.VITE_API_URL;
+      const API_URL = "https://webapp-osky.onrender.com";
 
       await fetch(`${API_URL}/api/calculate`, {
         method: "POST",

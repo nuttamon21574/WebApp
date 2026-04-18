@@ -84,7 +84,7 @@ async function saveOrUpdateBNPL(uid, contracts, db) {
     // =========================
     // 🔥 CALL BACKEND (FIXED)
     // =========================
-    const API_URL = import.meta.env.VITE_API_URL;
+    const API_URL = "https://webapp-osky.onrender.com";
 
     await fetch(`${API_URL}/api/calculate`, {
       method: "POST",
