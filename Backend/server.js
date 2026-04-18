@@ -3,40 +3,36 @@ require("dotenv").config();
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 console.log("GEMINI KEY:", process.env.GEMINI_API_KEY);
-
 console.log("GEMINI KEY:", GEMINI_API_KEY ? "Loaded ✅" : "Missing ❌");
-
-
 
 const express = require("express");
 const cors = require("cors");
 const fileUpload = require("express-fileupload");
 const admin = require("firebase-admin");
 
-
 /* ================= FIREBASE ================= */
 
 let credential;
 
-
-
 if (process.env.FIREBASE_PRIVATE_KEY) {
-// Production (Render)
-console.log("Using Production Firebase Credentials");
+  // Production (Render)
+  console.log("Using Production Firebase Credentials");
 
-
-credential = admin.credential.cert({
-projectId: process.env.FB_PROJECT_ID,
-clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\n/g, "\n"),
-});
+  credential = admin.credential.cert({
+    projectId: process.env.FB_PROJECT_ID,
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    privateKey: process.env.FIREBASE_PRIVATE_KEY
+      .replace(/\\n/g, "\n")   // 🔥 แก้ตรงนี้ (สำคัญสุด)
+      .replace(/\\r/g, "")     // 🔥 กัน Windows newline
+      .trim(),                // 🔥 กัน space แอบ
+  });
 
 } else {
-// Local
-console.log("Using Local Firebase Credentials");
+  // Local
+  console.log("Using Local Firebase Credentials");
 
-const serviceAccount = require("./serviceAccountKey.json");
-credential = admin.credential.cert(serviceAccount);
+  const serviceAccount = require("./serviceAccountKey.json");
+  credential = admin.credential.cert(serviceAccount);
 }
 
 admin.initializeApp({ credential });
@@ -46,10 +42,10 @@ admin.initializeApp({ credential });
 const app = express();
 
 app.use(cors({
-origin: [
-"http://localhost:5173",
-],
-methods: ["GET", "POST"],
+  origin: [
+    "http://localhost:5173",
+  ],
+  methods: ["GET", "POST"],
 }));
 
 app.use(express.json());
@@ -58,8 +54,8 @@ app.use(fileUpload());
 /* ================= TEST ROUTE ================= */
 
 app.get("/", (req, res) => {
-console.log("Root API hit");
-res.send("Server running 🚀");
+  console.log("Root API hit");
+  res.send("Server running 🚀");
 });
 
 /* ================= ROUTES ================= */
@@ -87,8 +83,8 @@ console.log("Routes loaded ✅");
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-console.log("=================================");
-console.log(`🚀 Server running on port ${PORT}`);
-console.log(`AI endpoint → http://localhost:${PORT}/api/ai/generate`);
-console.log("=================================");
-});
+  console.log("=================================");
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`AI endpoint → http://localhost:${PORT}/api/ai/generate`);
+  console.log("=================================");
+}); 
