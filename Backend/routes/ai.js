@@ -13,7 +13,6 @@ router.post("/", async (req, res) => {
     const { uid, month } = req.body;
 
     console.log("🔥 REQUEST:", { uid, month });
-    console.log("🔥 REQUEST:", { uid, month });
 
     // ✅ validate
     if (!uid || !month) {
