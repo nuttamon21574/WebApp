@@ -81,7 +81,7 @@ export default function Recommendations() {
       // =============================
       // 2️⃣ Generate AI
       // =============================
-      await fetch("https://webapp-osky.onrender.com/api/ai", {
+      await fetch("https://your-backend.onrender.com/api/ai", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
