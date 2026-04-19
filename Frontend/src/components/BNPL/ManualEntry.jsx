@@ -199,8 +199,10 @@ const handleSave = async () => {
       }
 
     }
+    
 
-    await fetch("https://your-backend.onrender.com/api/calculate", {
+    const API_URL = "https://webapp-osky.onrender.com";
+    const res = await fetch(`${API_URL}/api`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

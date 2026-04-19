@@ -274,8 +274,9 @@ if (loading)
       await deleteDoc(doc(db, "bnplDebt", user.uid, "items", txId));
 
       setTransactions((prev) => prev.filter(tx => tx.id !== txId));
+      const API_URL = "https://webapp-osky.onrender.com";
 
-      await fetch("https://your-backend.onrender.com/api/calculate", {
+      await fetch(`${API_URL}/api/calculate`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -520,7 +521,9 @@ if (loading)
                       }
                     );
 
-                    await fetch("https://your-backend.onrender.com/api/calculate", {
+                    const API_URL = "https://webapp-osky.onrender.com";
+                    
+                    await fetch(`${API_URL}/api/calculate`, {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({ uid: user.uid }),
