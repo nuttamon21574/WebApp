@@ -92,7 +92,7 @@ export default function UploadPDF({ provider }) {
 
     try {
       const API_URL = "https://webapp-osky.onrender.com";
-      const res = await fetch(`${API_URL}/api`, {
+      await fetch(`${API_URL}/api/calculate`, {
         method: "POST",
         body: formData,
       });
