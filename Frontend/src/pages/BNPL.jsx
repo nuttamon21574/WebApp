@@ -18,8 +18,13 @@ export default function BNPL() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const startMode = location.state?.startMode || "pdf";
+    const txId = location.state?.txId;
+
+  const startMode = txId
+  ? "manual" // ✅ บังคับแก้ = manual
+  : location.state?.startMode || "pdf";
   const startProvider = location.state?.provider || "SPayLater";
+
 
   const [mode, setMode] = useState(startMode);
   const [provider, setProvider] = useState(startProvider);
@@ -117,7 +122,7 @@ export default function BNPL() {
 
           <div className="bg-white rounded-3xl p-8 h-screen flex flex-col gap-6 overflow-auto">
             
-            {mode !== "empty" && (
+            {mode !== "empty" && !txId && (
               <ModeSelector
                 mode={mode}
                 provider={provider}
@@ -144,6 +149,7 @@ export default function BNPL() {
             {mode === "manual" && (
               <ManualEntry
                 provider={provider}
+                txId={txId}
                 onCancel={() => {
                   resetBNPLFlow();
                   setMode("empty");

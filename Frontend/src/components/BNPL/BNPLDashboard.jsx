@@ -26,7 +26,7 @@ import {
   Legend
 } from "recharts";
 
-
+import { useNavigate } from "react-router-dom";
 
 export default function BNPLDashboard() {
   const [data, setData] = useState(null);
@@ -38,6 +38,7 @@ export default function BNPLDashboard() {
   const debounceRef = useRef(null)
   const lastPayloadRef = useRef(null)
   const isFirstLoad = useRef(true)
+  const navigate = useNavigate();
 
   const toNumber = (val) =>
     typeof val === "number" ? val : parseFloat(val) || 0;
@@ -80,7 +81,7 @@ export default function BNPLDashboard() {
     const tx = {
       id: docSnap.id,
       productName: d.productName || "-",
-      purchaseDate: d.purchaseDate || "",
+
       amount: toNumber(
         d.outstandingDebt ??
         d.totalDebt ??
@@ -88,10 +89,12 @@ export default function BNPLDashboard() {
         0
       ),
 
-      // ✅ FIX
       monthlyInstallment: toNumber(d.monthlyInstallment || 0),
       paidAmount: toNumber(d.paidAmount || 0),
       status: d.status || "active",
+
+      provider: d.provider || "", // ✅ เพิ่ม
+      totalInstallments: Number(d.totalInstallments || 0), // ✅ เพิ่ม
 
       platform: (d.provider || "").toLowerCase(),
       createdAt: d.createdAt?.toDate?.() || new Date(0)
@@ -272,13 +275,11 @@ if (loading)
 
       setTransactions((prev) => prev.filter(tx => tx.id !== txId));
 
-      const API_URL = "https://webapp-osky.onrender.com";
-
-      await fetch(`${API_URL}/api/calculate`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+      await fetch("http://localhost:5000/api/calculate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
         uid: user.uid,
         month: getCurrentMonth(), // ✅ เพิ่มตรงนี้
@@ -474,7 +475,7 @@ if (loading)
                       amount = tx.amount;
                     }
 
-                    if (action === "postpone") {
+                    /*if (action === "postpone") {
                       await updateDoc(
                         doc(db, "bnplDebt", user.uid, "items", tx.id),
                         { status: "postponed" }
@@ -488,7 +489,25 @@ if (loading)
 
                       e.target.value = "";
                       return;
-                    }
+                    }*/
+                   if (action === "postpone") {
+                    await updateDoc(
+                      doc(db, "bnplDebt", user.uid, "items", tx.id),
+                      { status: "postponed" }
+                    );
+
+                    console.log("TX:", tx);
+
+                    navigate("/bnpl", {
+                      state: {
+                        startMode: "manual",
+                        provider: tx.provider || "SPayLater", // ✅ FIX
+                        txId: tx.id
+                      }
+                    });
+
+                    return;
+                  }
 
                     const newOutstanding = Math.max(0, tx.amount - amount);
 
@@ -518,7 +537,9 @@ if (loading)
                   <option value="min">Pay Minimum</option>
                   <option value="extra">Pay Extra</option>
                   <option value="full">Full Payment</option>
-                  <option value="postpone">Postpone</option>
+                  {tx.totalInstallments === 1 && (
+                    <option value="postpone">Postpone</option>
+                  )}
                 </select>
               )}
             </div>

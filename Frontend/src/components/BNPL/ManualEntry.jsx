@@ -11,11 +11,20 @@ import { parse, format, isValid } from "date-fns";
 
 import { useNavigate } from "react-router-dom";
 
+import { useEffect } from "react";
+import { doc, getDoc } from "firebase/firestore";
+import { useLocation } from "react-router-dom";
+
+
+
+
+
 /* =======================================================
    MAIN COMPONENT
 ======================================================= */
-export default function ManualEntry({ provider }) {
+export default function ManualEntry({ provider, txId  }) {
   const navigate = useNavigate();
+
 
   const emptyItem = {
     productName: "",
@@ -29,6 +38,41 @@ export default function ManualEntry({ provider }) {
   };
 
   const [items, setItems] = useState([emptyItem]);
+
+  useEffect(() => {
+    const fetchTx = async () => {
+      if (!txId) return;
+
+      const user = auth.currentUser;
+      if (!user) return;
+
+      try {
+        const ref = doc(db, "bnplDebt", user.uid, "items", txId);
+        const snap = await getDoc(ref);
+
+        if (snap.exists()) {
+          const d = snap.data();
+
+          setItems([
+            {
+              productName: d.productName || "",
+              purchaseDate: d.purchaseDate || "",
+              dueDate: d.dueDate || "",
+              totalDebt: d.totalDebt || "",
+              annualInterestRate: d.annualInterestRate || 0,
+              totalInstallments: d.totalInstallments || "",
+              monthlyInstallment: d.monthlyInstallment || "",
+              outstandingDebt: d.outstandingDebt || "",
+            }
+          ]);
+        }
+      } catch (err) {
+        console.error("โหลดข้อมูลไม่สำเร็จ:", err);
+      }
+    };
+
+    fetchTx();
+  }, [txId]);
 
   const isItemComplete = (item) =>
     item.productName.trim() !== "" &&
@@ -156,9 +200,7 @@ const handleSave = async () => {
 
     }
 
-    const API_URL = "https://webapp-osky.onrender.com";
-
-    await fetch(`${API_URL}/api/calculate`, {
+    await fetch("http://localhost:5000/api/calculate", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

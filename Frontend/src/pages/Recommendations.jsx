@@ -50,23 +50,59 @@ export default function Recommendations() {
     let isMounted = true;
 
     const fetchRecommendation = async () => {
-      try {
-        setLoading(true);
+    try {
+      if (loading) return; // กันยิงซ้ำ
 
-        const docRef = doc(
-          db,
-          "recommendation",
-          user.uid,
-          "monthly",
-          selectedMonth
-        );
+      setLoading(true);
 
-        const snap = await getDoc(docRef);
+      const docRef = doc(
+        db,
+        "recommendation",
+        user.uid,
+        "monthly",
+        selectedMonth
+      );
 
-        if (!isMounted) return;
+      console.log("🔥 ENTER TAB → FORCE GENERATE:", selectedMonth);
 
-        if (snap.exists()) {
-        console.log("✅ FOUND DATA:", selectedMonth);
+      // =============================
+      // 1️⃣ คำนวณ
+      // =============================
+      await fetch("http://localhost:5000/api/financial", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ uid: user.uid }),
+      });
+
+      console.log("✅ FINANCIAL DONE");
+
+      // =============================
+      // 2️⃣ Generate AI
+      // =============================
+      await fetch("http://localhost:5000/api/ai", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          uid: user.uid,
+          month: selectedMonth,
+        }),
+      });
+
+      console.log("🤖 AI GENERATED");
+
+      // =============================
+      // 3️⃣ ดึงข้อมูลใหม่
+      // =============================
+      const snap = await getDoc(docRef);
+
+      if (!isMounted) return;
+
+      if (snap.exists()) {
+        console.log("✅ FETCH NEW DATA");
 
         const raw = snap.data();
 
@@ -81,64 +117,17 @@ export default function Recommendations() {
         setAdvice(normalized);
 
       } else {
-        console.warn("⚠️ NO DATA → GENERATE AI:", selectedMonth);
-
-        setAdvice(null); // ให้ UI เคลียร์ก่อน
-        
-        // 🔥 เรียก AI
-        try {
-        console.log("📤 CALL AI API:", {
-          uid: user.uid,
-          month: selectedMonth,
-        });
-
-        const res = await fetch("http://localhost:5000/api/ai", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            uid: user.uid,
-            month: selectedMonth,
-          }),
-        });
-
-        const data = await res.json();
-
-        console.log("🎉 AI RESPONSE:", data);
-
-        // 🔁 fetch ใหม่หลัง generate
-        const newSnap = await getDoc(docRef);
-
-        if (newSnap.exists()) {
-          console.log("✅ REFETCH SUCCESS");
-
-          const raw = newSnap.data();
-
-          setAdvice({
-            ...raw,
-            recommended_payment: Number(raw.recommended_payment || 0),
-            remaining_monthly_cash: Number(raw.remaining_monthly_cash || 0),
-            actions: raw.actions || [],
-            benefits: raw.benefits || [],
-          });
-
-        } else {
-          console.error("❌ AI SAVE FAILED (no monthly doc)");
-        }
-
-      } catch (err) {
-        console.error("🔥 AI CALL ERROR:", err);
-      }
+        console.error("❌ GENERATE FAIL: NO DATA");
+        setAdvice(null);
       }
 
-      } catch (err) {
-        console.error(err);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-
+    } catch (err) {
+      console.error("🔥 FETCH ERROR:", err);
+    } finally {
+      if (isMounted) setLoading(false);
+    }
+  };
+  
     fetchRecommendation();
 
     return () => {
