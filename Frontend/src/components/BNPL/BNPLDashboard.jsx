@@ -275,7 +275,7 @@ if (loading)
 
       setTransactions((prev) => prev.filter(tx => tx.id !== txId));
 
-      await fetch("http://localhost:5000/api/calculate", {
+      await fetch("https://webapp-osky.onrender.com/api/calculate", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -481,7 +481,7 @@ if (loading)
                         { status: "postponed" }
                       );
 
-                      await fetch("http://localhost:5000/api/calculate", {
+                      await fetch("https://webapp-osky.onrender.com/api/calculate", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ uid: user.uid }),
@@ -520,7 +520,7 @@ if (loading)
                       }
                     );
 
-                    await fetch("http://localhost:5000/api/calculate", {
+                    await fetch("https://webapp-osky.onrender.com/api/calculate", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({ uid: user.uid }),
