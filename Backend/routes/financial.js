@@ -3,7 +3,7 @@ const router = express.Router();
 const { admin, db } = require("../firebaseAdmin");
 
 const { assignPersona } = require("../services/personaEngine");
-const { generateFinancialAdvice } = require("../services/aiService");
+//const { generateFinancialAdvice } = require("../services/aiService");
 
 /* =========================
    SAFE NUMBER
@@ -135,7 +135,7 @@ router.post("/", async (req, res) => {
     const userData = snap.data();
 
     // 3️⃣ GENERATE AI
-    const advice = await generateFinancialAdvice({
+    /*const advice = await generateFinancialAdvice({
       ...userData,
       ...calcResult,
       age: userData.age || 0,
@@ -178,6 +178,13 @@ router.post("/", async (req, res) => {
     res.json({
       success: true,
       ai: advice,
+    });*/
+
+    console.log("✅ FINANCIAL CALCULATED:", uid);
+
+    res.json({
+      success: true,
+      message: "financial calculated only",
     });
 
   } catch (err) {

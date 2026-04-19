@@ -6,6 +6,8 @@ import Statinfo from "../components/Card/Statinfo.jsx";
 import { db, auth } from "../firebase";
 import { doc, getDoc } from "firebase/firestore";
 
+
+
 export default function Recommendations() {
 
   // =============================
@@ -26,6 +28,8 @@ export default function Recommendations() {
   const [advice, setAdvice] = useState(null);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  
 
   // =============================
   // 🔐 AUTH
@@ -62,20 +66,71 @@ export default function Recommendations() {
         if (!isMounted) return;
 
         if (snap.exists()) {
-          const raw = snap.data();
+        console.log("✅ FOUND DATA:", selectedMonth);
 
-          const normalized = {
+        const raw = snap.data();
+
+        const normalized = {
+          ...raw,
+          recommended_payment: Number(raw.recommended_payment || 0),
+          remaining_monthly_cash: Number(raw.remaining_monthly_cash || 0),
+          actions: raw.actions || [],
+          benefits: raw.benefits || [],
+        };
+
+        setAdvice(normalized);
+
+      } else {
+        console.warn("⚠️ NO DATA → GENERATE AI:", selectedMonth);
+
+        setAdvice(null); // ให้ UI เคลียร์ก่อน
+        
+        // 🔥 เรียก AI
+        try {
+        console.log("📤 CALL AI API:", {
+          uid: user.uid,
+          month: selectedMonth,
+        });
+
+        const res = await fetch("http://localhost:5000/api/ai", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            uid: user.uid,
+            month: selectedMonth,
+          }),
+        });
+
+        const data = await res.json();
+
+        console.log("🎉 AI RESPONSE:", data);
+
+        // 🔁 fetch ใหม่หลัง generate
+        const newSnap = await getDoc(docRef);
+
+        if (newSnap.exists()) {
+          console.log("✅ REFETCH SUCCESS");
+
+          const raw = newSnap.data();
+
+          setAdvice({
             ...raw,
             recommended_payment: Number(raw.recommended_payment || 0),
             remaining_monthly_cash: Number(raw.remaining_monthly_cash || 0),
             actions: raw.actions || [],
             benefits: raw.benefits || [],
-          };
+          });
 
-          setAdvice(normalized);
         } else {
-          setAdvice(null); // 🔥 ให้ Statinfo handle
+          console.error("❌ AI SAVE FAILED (no monthly doc)");
         }
+
+      } catch (err) {
+        console.error("🔥 AI CALL ERROR:", err);
+      }
+      }
 
       } catch (err) {
         console.error(err);

@@ -22,6 +22,8 @@ router.post("/", async (req, res) => {
       });
     }
 
+    console.log("✅ INPUT OK:", { uid, month });
+    
     /* =========================
        1. GET USER DATA
     ========================= */

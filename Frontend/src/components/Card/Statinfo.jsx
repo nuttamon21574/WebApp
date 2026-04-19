@@ -57,9 +57,7 @@ export default function Statinfo({ advice }) {
 
             <div className="pb-2 pt-4">
               <p className="text-xl md:text-2xl text-black">
-                {isEmpty
-                  ? "ยังไม่มีข้อมูลสำหรับเดือนนี้ กรุณาเพิ่มข้อมูลเพื่อให้ระบบวิเคราะห์และแนะนำได้"
-                  : advice.financial_status}
+                {isEmpty ? "-" : advice.financial_status}
               </p>
             </div>
 
@@ -113,11 +111,7 @@ export default function Statinfo({ advice }) {
 
             <ul className="list-disc list-inside space-y-1 text-xl">
               {isEmpty ? (
-                <>
-                  <li>ยังไม่มีคำแนะนำในเดือนนี้</li>
-                  <li>ลองเพิ่มข้อมูลรายรับ–รายจ่าย หรือหนี้สิน</li>
-                  <li>แล้วสร้างคำแนะนำเพื่อดูผลลัพธ์</li>
-                </>
+                <li>-</li>
               ) : advice.actions?.length > 0 ? (
                 advice.actions.map((item, index) => (
                   <li key={index}>{item}</li>
@@ -136,11 +130,7 @@ export default function Statinfo({ advice }) {
 
             <ul className="list-disc list-inside space-y-1 text-xl">
               {isEmpty ? (
-                <>
-                  <li>เมื่อมีข้อมูล ระบบจะช่วยวิเคราะห์การเงินของคุณ</li>
-                  <li>วางแผนการชำระหนี้ได้เหมาะสมมากขึ้น</li>
-                  <li>เห็นภาพรวมการเงินชัดเจนขึ้น</li>
-                </>
+                <li>-</li>
               ) : advice.benefits?.length > 0 ? (
                 advice.benefits.map((item, index) => (
                   <li key={index}>{item}</li>
