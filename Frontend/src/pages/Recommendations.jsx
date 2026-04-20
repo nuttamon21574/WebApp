@@ -69,7 +69,7 @@ export default function Recommendations() {
       // 1️⃣ คำนวณ
       // =============================
       const API_URL = "https://webapp-osky.onrender.com";
-      await fetch(`${API_URL}/api/financial`, {
+      fetch(`${API_URL}/api/financial`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -82,7 +82,7 @@ export default function Recommendations() {
       // =============================
       // 2️⃣ Generate AI
       // =============================
-      await fetch(`${API_URL}/api/ai`, {
+      fetch(`${API_URL}/api/ai`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
