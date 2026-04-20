@@ -119,7 +119,7 @@ router.post("/", async (req, res) => {
     const { uid } = req.body;
 
     if (!uid) {
-      return res.status(400).json({
+      return res.status(200).json({
         success: false,
         error: "uid is required",
       });
