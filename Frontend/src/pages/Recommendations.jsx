@@ -31,37 +31,70 @@ export default function Recommendations() {
 
   
 
-  // =============================
-  // 🔐 AUTH
-  // =============================
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((u) => {
-      setUser(u);
-    });
-    return () => unsubscribe();
-  }, []);
+    // =============================
+    // 🔐 AUTH
+    // =============================
+    useEffect(() => {
+      const unsubscribe = auth.onAuthStateChanged((u) => {
+        setUser(u);
+      });
+      return () => unsubscribe();
+    }, []);
 
-  // =============================
-  // 📡 FETCH
-  // =============================
-  useEffect(() => {
-    if (!user || !selectedMonth) return;
+    // =============================
+    // 📡 FETCH
+    // =============================
+    useEffect(() => {
+      if (!user || !selectedMonth) return;
 
-    let isMounted = true;
+      let isMounted = true;
 
-    const fetchRecommendation = async () => {
-    try {
-      if (loading) return; // กันยิงซ้ำ
+      const fetchRecommendation = async () => {
+        try {
+          setLoading(true);
 
-      setLoading(true);
+          const docRef = doc(
+            db,
+            "recommendation",
+            user.uid,
+            "monthly",
+            selectedMonth
+          );
 
-      const docRef = doc(
-        db,
-        "recommendation",
-        user.uid,
-        "monthly",
-        selectedMonth
-      );
+          const snap = await getDoc(docRef);
+
+          if (!isMounted) return;
+
+          if (snap.exists()) {
+            const raw = snap.data();
+
+            const normalized = {
+              ...raw,
+              recommended_payment: Number(raw.recommended_payment || 0),
+              remaining_monthly_cash: Number(raw.remaining_monthly_cash || 0),
+              actions: raw.actions || [],
+              benefits: raw.benefits || [],
+            };
+
+            setAdvice(normalized);
+          } else {
+            setAdvice(null); // 🔥 ให้ Statinfo handle
+          }
+
+        } catch (err) {
+          console.error(err);
+        } finally {
+          if (isMounted) setLoading(false);
+        }
+      };
+
+      fetchRecommendation();
+
+      return () => {
+        isMounted = false;
+      };
+
+    }, [selectedMonth, user]);
 
       console.log("🔥 ENTER TAB → FORCE GENERATE:", selectedMonth);
 
