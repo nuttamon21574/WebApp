@@ -3,12 +3,15 @@ import loanImg from "@/assets/image/Loan.png";
 import payminImg from "@/assets/image/Paymin.png";
 import canpreImg from "@/assets/image/Canpre.png";
 
-export default function Statinfo({ advice }) {
+export default function Statinfo({ advice, statusType }) {
 
   // =============================
-  // 🧠 EMPTY CHECK
+  // 🧠 STATE CHECK
   // =============================
   const isEmpty = !advice;
+  const isBeforeStart = statusType === "beforeStart";
+  const isFuture = statusType === "future";
+  const isNoDebt = statusType === "noDebt";
 
   // =============================
   // 🤖 PERSONA IMAGE
@@ -20,9 +23,10 @@ export default function Statinfo({ advice }) {
     LOAN_ROLLOVER: loanImg
   };
 
-  const personaImage = !isEmpty && advice?.group
-    ? personaImages[advice.group]
-    : null;
+  const personaImage =
+    !isEmpty && advice?.group
+      ? personaImages[advice.group]
+      : null;
 
   // =============================
   // 🔢 NORMALIZE DATA
@@ -57,8 +61,14 @@ export default function Statinfo({ advice }) {
 
             <div className="pb-2 pt-4">
               <p className="text-xl md:text-2xl text-black">
-                {isEmpty
-                  ? "ยังไม่มีข้อมูลสำหรับเดือนนี้ กรุณาเพิ่มข้อมูลเพื่อให้ระบบวิเคราะห์และแนะนำได้"
+                {isBeforeStart
+                  ? "คุณยังไม่ได้เริ่มใช้งานในช่วงเดือนนี้"
+                  : isFuture
+                  ? "ยังไม่สามารถวิเคราะห์ล่วงหน้าได้"
+                  : isNoDebt
+                  ? "คุณไม่มีหนี้ในเดือนนี้ 🎉"
+                  : isEmpty
+                  ? "ยังไม่มีข้อมูลสำหรับเดือนนี้ กรุณาเพิ่มข้อมูล"
                   : advice.financial_status}
               </p>
             </div>
@@ -81,7 +91,11 @@ export default function Statinfo({ advice }) {
             </p>
 
             <p className="text-5xl font-bold text-center">
-              {isEmpty
+              {isBeforeStart || isFuture
+                ? "-"
+                : isNoDebt
+                ? "0 ฿"
+                : isEmpty
                 ? "-"
                 : recommendedPayment.toLocaleString() + " ฿"}
             </p>
@@ -94,7 +108,11 @@ export default function Statinfo({ advice }) {
             </p>
 
             <p className="text-5xl font-bold text-center">
-              {isEmpty
+              {isBeforeStart || isFuture
+                ? "-"
+                : isNoDebt
+                ? "0 ฿"
+                : isEmpty
                 ? "-"
                 : remainingCash.toLocaleString() + " ฿"}
             </p>
@@ -112,11 +130,19 @@ export default function Statinfo({ advice }) {
             </h3>
 
             <ul className="list-disc list-inside space-y-1 text-xl">
-              {isEmpty ? (
+              {isBeforeStart ? (
+                <li>คุณยังไม่ได้ใช้งานระบบในช่วงนี้</li>
+              ) : isFuture ? (
+                <li>ยังไม่สามารถสร้างคำแนะนำล่วงหน้าได้</li>
+              ) : isNoDebt ? (
+                <>
+                  <li>คุณไม่มีภาระหนี้ในเดือนนี้</li>
+                  <li>สามารถเริ่มวางแผนการออมได้</li>
+                </>
+              ) : isEmpty ? (
                 <>
                   <li>ยังไม่มีคำแนะนำในเดือนนี้</li>
-                  <li>ลองเพิ่มข้อมูลรายรับ–รายจ่าย หรือหนี้สิน</li>
-                  <li>แล้วสร้างคำแนะนำเพื่อดูผลลัพธ์</li>
+                  <li>ลองเพิ่มข้อมูลรายรับ–รายจ่าย</li>
                 </>
               ) : advice.actions?.length > 0 ? (
                 advice.actions.map((item, index) => (
@@ -135,10 +161,18 @@ export default function Statinfo({ advice }) {
             </h3>
 
             <ul className="list-disc list-inside space-y-1 text-xl">
-              {isEmpty ? (
+              {isBeforeStart ? (
+                <li>เริ่มใช้งานเพื่อให้ระบบวิเคราะห์การเงินของคุณ</li>
+              ) : isFuture ? (
+                <li>ข้อมูลจะพร้อมเมื่อถึงเดือนนั้น</li>
+              ) : isNoDebt ? (
+                <>
+                  <li>คุณมีสภาพคล่องทางการเงินที่ดี</li>
+                  <li>สามารถวางแผนการลงทุนหรือออมเงินได้</li>
+                </>
+              ) : isEmpty ? (
                 <>
                   <li>เมื่อมีข้อมูล ระบบจะช่วยวิเคราะห์การเงินของคุณ</li>
-                  <li>วางแผนการชำระหนี้ได้เหมาะสมมากขึ้น</li>
                   <li>เห็นภาพรวมการเงินชัดเจนขึ้น</li>
                 </>
               ) : advice.benefits?.length > 0 ? (

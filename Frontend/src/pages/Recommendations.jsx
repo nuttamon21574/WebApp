@@ -6,8 +6,6 @@ import Statinfo from "../components/Card/Statinfo.jsx";
 import { db, auth } from "../firebase";
 import { doc, getDoc } from "firebase/firestore";
 
-
-
 export default function Recommendations() {
 
   // =============================
@@ -24,12 +22,28 @@ export default function Recommendations() {
     ).padStart(2, "0")}`;
   };
 
+  // =============================
+  // 📅 START MONTH (from Firebase Auth)
+  // =============================
+  const getStartMonthFromUser = (user) => {
+    if (!user?.metadata?.creationTime) return null;
+
+    const date = new Date(user.metadata.creationTime);
+
+    const thai = new Date(
+      date.toLocaleString("en-US", { timeZone: "Asia/Bangkok" })
+    );
+
+    return `${thai.getFullYear()}-${String(
+      thai.getMonth() + 1
+    ).padStart(2, "0")}`;
+  };
+
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const [advice, setAdvice] = useState(null);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
-
-  
+  const [statusType, setStatusType] = useState("normal");
 
   // =============================
   // 🔐 AUTH
@@ -50,85 +64,123 @@ export default function Recommendations() {
     let isMounted = true;
 
     const fetchRecommendation = async () => {
-    try {
-      if (loading) return; // กันยิงซ้ำ
+      try {
+        if (loading) return;
 
-      setLoading(true);
+        setLoading(true);
 
-      const docRef = doc(
-        db,
-        "recommendation",
-        user.uid,
-        "monthly",
-        selectedMonth
-      );
+        const currentMonth = getCurrentMonth();
+        const startMonth = getStartMonthFromUser(user);
 
-      console.log("🔥 ENTER TAB → FORCE GENERATE:", selectedMonth);
+        if (!startMonth) return;
 
-      // =============================
-      // 1️⃣ คำนวณ
-      // =============================
-      const API_URL = "https://webapp-osky.onrender.com";
-      await fetch(`${API_URL}/api/financial`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ uid: user.uid }),
-      });
+        // ⛔ ก่อนสมัคร
+        if (selectedMonth < startMonth) {
+          setAdvice(null);
+          setStatusType("beforeStart");
+          return;
+        }
 
-      console.log("✅ FINANCIAL DONE");
+        // ⛔ เดือนอนาคต
+        if (selectedMonth > currentMonth) {
+          setAdvice(null);
+          setStatusType("future");
+          return;
+        }
 
-      // =============================
-      // 2️⃣ Generate AI
-      // =============================
-      await fetch(`${API_URL}/api/ai`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          uid: user.uid,
-          month: selectedMonth,
-        }),
-      });
+        const docRef = doc(
+          db,
+          "recommendation",
+          user.uid,
+          "monthly",
+          selectedMonth
+        );
 
-      console.log("🤖 AI GENERATED");
+        // =============================
+        // ⚡ CACHE ก่อน
+        // =============================
+        const snap = await getDoc(docRef);
 
-      // =============================
-      // 3️⃣ ดึงข้อมูลใหม่
-      // =============================
-      const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          console.log("⚡ USE CACHE");
 
-      if (!isMounted) return;
+          const raw = snap.data();
 
-      if (snap.exists()) {
-        console.log("✅ FETCH NEW DATA");
+          const normalized = {
+            ...raw,
+            recommended_payment: Number(raw.recommended_payment || 0),
+            remaining_monthly_cash: Number(raw.remaining_monthly_cash || 0),
+            actions: raw.actions || [],
+            benefits: raw.benefits || [],
+          };
 
-        const raw = snap.data();
+          const isAllZero =
+            normalized.recommended_payment === 0 &&
+            normalized.remaining_monthly_cash === 0 &&
+            normalized.actions.length === 0 &&
+            normalized.benefits.length === 0;
 
-        const normalized = {
-          ...raw,
-          recommended_payment: Number(raw.recommended_payment || 0),
-          remaining_monthly_cash: Number(raw.remaining_monthly_cash || 0),
-          actions: raw.actions || [],
-          benefits: raw.benefits || [],
-        };
+          setAdvice(isAllZero ? null : normalized);
+          setStatusType(isAllZero ? "noDebt" : "normal");
+          return;
+        }
 
-        setAdvice(normalized);
+        // =============================
+        // 🚀 GENERATE (ใช้ API เดิม)
+        // =============================
+        console.log("🆕 GENERATE");
 
-      } else {
-        console.error("❌ GENERATE FAIL: NO DATA");
-        setAdvice(null);
+        const API_URL = "https://webapp-osky.onrender.com";
+
+        await fetch(`${API_URL}/api/financial`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ uid: user.uid }),
+        });
+
+        await fetch(`${API_URL}/api/ai`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            uid: user.uid,
+            month: selectedMonth,
+          }),
+        });
+
+        const newSnap = await getDoc(docRef);
+
+        if (!isMounted) return;
+
+        if (newSnap.exists()) {
+          const raw = newSnap.data();
+
+          const normalized = {
+            ...raw,
+            recommended_payment: Number(raw.recommended_payment || 0),
+            remaining_monthly_cash: Number(raw.remaining_monthly_cash || 0),
+            actions: raw.actions || [],
+            benefits: raw.benefits || [],
+          };
+
+          const isAllZero =
+            normalized.recommended_payment === 0 &&
+            normalized.remaining_monthly_cash === 0 &&
+            normalized.actions.length === 0 &&
+            normalized.benefits.length === 0;
+
+          setAdvice(isAllZero ? null : normalized);
+          setStatusType(isAllZero ? "noDebt" : "normal");
+        } else {
+          setAdvice(null);
+        }
+
+      } catch (err) {
+        console.error("🔥 FETCH ERROR:", err);
+      } finally {
+        if (isMounted) setLoading(false);
       }
+    };
 
-    } catch (err) {
-      console.error("🔥 FETCH ERROR:", err);
-    } finally {
-      if (isMounted) setLoading(false);
-    }
-  };
-  
     fetchRecommendation();
 
     return () => {
@@ -153,32 +205,28 @@ export default function Recommendations() {
             Recommendation
           </p>
 
-          {/* Month Picker */}
           <div className="mt-4 mb-6">
             <MonthPicker
               value={selectedMonth}
               onChange={(val) => {
-                console.log("📅 CHANGE MONTH:", val);
                 setSelectedMonth(val);
               }}
             />
           </div>
 
-          {/* CONTENT */}
           <div className="bg-white rounded-3xl p-6 sm:p-8 lg:p-10 w-full shadow-md min-h-[400px]">
 
-            {/* 🔄 Loading */}
             {loading && (
               <p className="text-gray-500 text-center">
                 Loading...
               </p>
             )}
 
-            {/* ✅ ใช้ Statinfo ตลอด */}
             {!loading && (
               <Statinfo
                 key={selectedMonth}
                 advice={advice}
+                statusType={statusType}
               />
             )}
 
