@@ -6,6 +6,8 @@ import Statinfo from "../components/Card/Statinfo.jsx";
 import { db, auth } from "../firebase";
 import { doc, getDoc } from "firebase/firestore";
 
+import loadImg from "@/assets/image/load.gif";
+
 export default function Recommendations() {
 
   // =============================
@@ -44,7 +46,6 @@ export default function Recommendations() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
   const [statusType, setStatusType] = useState("normal");
-
   // =============================
   // 🔐 AUTH
   // =============================
@@ -65,7 +66,7 @@ export default function Recommendations() {
 
     const fetchRecommendation = async () => {
       try {
-        if (loading) return;
+        //if (loading) return;
 
         setLoading(true);
 
@@ -74,15 +75,17 @@ export default function Recommendations() {
 
         if (!startMonth) return;
 
-        // ⛔ ก่อนสมัคร
+        // ⛔ BEFORE REGISTER
         if (selectedMonth < startMonth) {
+          console.log("⛔ BEFORE REGISTER");
           setAdvice(null);
           setStatusType("beforeStart");
           return;
         }
 
-        // ⛔ เดือนอนาคต
+        // ⛔ FUTURE
         if (selectedMonth > currentMonth) {
+          console.log("⛔ FUTURE");
           setAdvice(null);
           setStatusType("future");
           return;
@@ -97,12 +100,12 @@ export default function Recommendations() {
         );
 
         // =============================
-        // ⚡ CACHE ก่อน
+        // ⚡ USE CACHE
         // =============================
         const snap = await getDoc(docRef);
 
         if (snap.exists()) {
-          console.log("⚡ USE CACHE");
+          console.log("⚡ USE CACHED DATA");
 
           const raw = snap.data();
 
@@ -126,12 +129,11 @@ export default function Recommendations() {
         }
 
         // =============================
-        // 🚀 GENERATE (ใช้ API เดิม)
+        // 🚀 GENERATE
         // =============================
         console.log("🆕 GENERATE");
-
+        
         const API_URL = "https://webapp-osky.onrender.com";
-
         await fetch(`${API_URL}/api/financial`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -169,7 +171,6 @@ export default function Recommendations() {
             normalized.benefits.length === 0;
 
           setAdvice(isAllZero ? null : normalized);
-          setStatusType(isAllZero ? "noDebt" : "normal");
         } else {
           setAdvice(null);
         }
@@ -205,28 +206,39 @@ export default function Recommendations() {
             Recommendation
           </p>
 
+          {/* Month Picker */}
           <div className="mt-4 mb-6">
             <MonthPicker
               value={selectedMonth}
               onChange={(val) => {
+                console.log("📅 CHANGE MONTH:", val);
                 setSelectedMonth(val);
               }}
             />
           </div>
 
-          <div className="bg-white rounded-3xl p-6 sm:p-8 lg:p-10 w-full shadow-md min-h-[400px]">
+          {/* CONTENT */}
+          <div className="bg-white rounded-3xl p-6 sm:p-8 lg:p-10 w-full shadow-md h-full">
 
             {loading && (
-              <p className="text-gray-500 text-center">
-                Loading...
-              </p>
+              <div className="flex flex-col justify-center items-center h-full text-center gap-3">
+                <img
+                  src={loadImg}
+                  alt="loading"
+                  className="w-50 h-50 object-contain"
+                />
+
+                <p className="text-gray-400 text-sm animate-pulse">
+                  กำลังวิเคราะห์ข้อมูล...
+                </p>
+              </div>
             )}
 
             {!loading && (
               <Statinfo
                 key={selectedMonth}
                 advice={advice}
-                statusType={statusType}
+                statusType={statusType} 
               />
             )}
 

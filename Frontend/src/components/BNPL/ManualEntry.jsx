@@ -199,10 +199,8 @@ const handleSave = async () => {
       }
 
     }
-    
 
-    const API_URL = "https://webapp-osky.onrender.com";
-    await fetch(`${API_URL}/api/calculate`, {
+    await fetch("http://localhost:5000/api/calculate", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -360,6 +358,7 @@ function NumberField({ label, name, value, onChange, step = "1", min = "0", unit
   );
 }
 
+
 function DateField({ label, name, value, onChange }) {
   let selectedDate = null;
   if (value) {
@@ -368,18 +367,25 @@ function DateField({ label, name, value, onChange }) {
   }
 
   const handleChangeDate = (date) => {
-    onChange({ target: { name, value: date ? format(date, "dd/MM/yyyy") : "" } });
+    onChange({
+      target: {
+        name,
+        value: date ? format(date, "dd/MM/yyyy") : ""
+      }
+    });
   };
 
   return (
-    <div>
+    <div className="flex flex-col h-full"> {/* 🔥 FIX ตรงนี้ */}
       <h4 className="mb-2 font-medium text-gray-700">{label}</h4>
+
       <DatePicker
         selected={selectedDate}
         onChange={handleChangeDate}
         dateFormat="dd/MM/yyyy"
         placeholderText="dd/mm/yyyy"
         className="w-full h-14 border rounded-xl px-4 py-3 text-left focus:outline-none focus:ring-2 focus:ring-blue-400"
+        wrapperClassName="w-full" 
         showMonthDropdown
         showYearDropdown
         dropdownMode="select"

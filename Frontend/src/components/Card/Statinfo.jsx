@@ -2,6 +2,7 @@ import fullClearanceImg from "@/assets/image/FullClearance.png";
 import loanImg from "@/assets/image/Loan.png";
 import payminImg from "@/assets/image/Paymin.png";
 import canpreImg from "@/assets/image/Canpre.png";
+import nodataImg from "@/assets/image/noData.png";
 
 export default function Statinfo({ advice, statusType }) {
 
@@ -23,10 +24,25 @@ export default function Statinfo({ advice, statusType }) {
     LOAN_ROLLOVER: loanImg
   };
 
+  // ✅ ใช้ nodata สำหรับ state พิเศษ
   const personaImage =
-    !isEmpty && advice?.group
+    isBeforeStart || isFuture || isNoDebt || isEmpty
+      ? nodataImg
+      : advice?.group
       ? personaImages[advice.group]
       : null;
+
+  // ✅ alt ปลอดภัย
+  const imageAlt =
+    isBeforeStart
+      ? "before-start"
+      : isFuture
+      ? "future"
+      : isNoDebt
+      ? "no-debt"
+      : isEmpty
+      ? "no-data"
+      : advice?.group;
 
   // =============================
   // 🔢 NORMALIZE DATA
@@ -40,12 +56,12 @@ export default function Statinfo({ advice, statusType }) {
       {/* ================= STATUS ================= */}
       <div className="grid md:grid-cols-3 gap-6 items-center">
 
-        {/* 🤖 ROBOT */}
+        {/* 🤖 IMAGE */}
         <div className="flex justify-center order-1 md:order-2">
           {personaImage && (
             <img
               src={personaImage}
-              alt={advice?.group}
+              alt={imageAlt}
               className="w-[180px] md:w-[220px] object-contain drop-shadow-xl"
             />
           )}
@@ -84,7 +100,6 @@ export default function Statinfo({ advice, statusType }) {
         {/* 💰 PAYMENT */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
 
-          {/* Recommended Payment */}
           <div className="bg-white rounded-3xl shadow-xl p-6">
             <p className="text-2xl text-gray-500 text-center">
               Recommended Payment
@@ -101,7 +116,6 @@ export default function Statinfo({ advice, statusType }) {
             </p>
           </div>
 
-          {/* Remaining Cash */}
           <div className="bg-white rounded-3xl shadow-xl p-6">
             <p className="text-2xl text-gray-500 text-center">
               Remaining Monthly Cash
@@ -123,7 +137,6 @@ export default function Statinfo({ advice, statusType }) {
         {/* 📋 ACTIONS + BENEFITS */}
         <div className="grid md:grid-cols-2 gap-8">
 
-          {/* Actions */}
           <div className="bg-white rounded-3xl shadow-xl p-6">
             <h3 className="font-semibold text-4xl mb-2">
               Actions
@@ -154,7 +167,6 @@ export default function Statinfo({ advice, statusType }) {
             </ul>
           </div>
 
-          {/* Benefits */}
           <div className="bg-white rounded-3xl shadow-xl p-6">
             <h3 className="font-semibold text-4xl mb-3">
               Benefits
