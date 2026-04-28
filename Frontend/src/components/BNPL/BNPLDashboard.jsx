@@ -165,21 +165,26 @@ export default function BNPLDashboard() {
 
   const totalDebt = spayDebt + lazDebt;
 
-  const spayLimit = userData.spaylater_limit || 0;
-  const lazLimit = userData.lazpaylater_limit || 0;
+  // ✅ FIX: แปลงเป็น number
+  const spayLimit = toNumber(userData.spaylater_limit);
+  const lazLimit = toNumber(userData.lazpaylater_limit);
+
   const totalLimit = spayLimit + lazLimit;
 
-  console.log("🔥 RECOMPUTE:", {
-    transactions,
-    totalDebt
-  });
+  const incomeNum = toNumber(userData.income);
+  const debtNum = toNumber(totalDebt);
+
+  let utilization = 0;
+
+  if (incomeNum > 0) {
+    utilization = (debtNum / incomeNum) * 100;
+  }
+
+  if (isNaN(utilization)) utilization = 0;
 
   setData({
     outstanding: totalDebt,
-    utilization:
-      totalLimit > 0
-        ? (totalDebt / totalLimit) * 100
-        : 0,
+    utilization,
     available: totalLimit - totalDebt,
 
     spayLimit,
@@ -190,7 +195,7 @@ export default function BNPLDashboard() {
 
   setLoading(false);
 
-}, [userData, JSON.stringify(transactions)]);
+}, [userData, transactions]);
 
 if (loading)
   return <div className="p-8 text-lg">Loading...</div>;
@@ -274,8 +279,8 @@ if (loading)
       await deleteDoc(doc(db, "bnplDebt", user.uid, "items", txId));
 
       setTransactions((prev) => prev.filter(tx => tx.id !== txId));
-      const API_URL = "https://webapp-osky.onrender.com";
 
+      const API_URL = "https://webapp-osky.onrender.com";
       await fetch(`${API_URL}/api/calculate`, {
       method: "POST",
       headers: {
@@ -482,7 +487,7 @@ if (loading)
                         { status: "postponed" }
                       );
 
-                      await fetch("https://your-backend.onrender.com/api/calculate", {
+                      await fetch("http://localhost:5000/api/calculate", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ uid: user.uid }),
@@ -522,7 +527,6 @@ if (loading)
                     );
 
                     const API_URL = "https://webapp-osky.onrender.com";
-                    
                     await fetch(`${API_URL}/api/calculate`, {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },

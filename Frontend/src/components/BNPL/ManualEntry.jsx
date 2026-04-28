@@ -13,7 +13,7 @@ import { useNavigate } from "react-router-dom";
 
 import { useEffect } from "react";
 import { doc, getDoc } from "firebase/firestore";
-//import { useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 
 
 
@@ -199,7 +199,9 @@ const handleSave = async () => {
       }
 
     }
+
     const API_URL = "https://webapp-osky.onrender.com";
+
     await fetch(`${API_URL}/api/calculate`, {
       method: "POST",
       headers: {

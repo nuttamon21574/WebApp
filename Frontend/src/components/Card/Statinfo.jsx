@@ -26,12 +26,12 @@ export default function Statinfo({ advice, statusType }) {
 
   // ✅ ใช้ nodata สำหรับ state พิเศษ
   const personaImage =
-    isBeforeStart || isFuture || isNoDebt || isEmpty
-      ? nodataImg
-      : advice?.group
-      ? personaImages[advice.group]
-      : null;
-
+  isBeforeStart || isFuture || isNoDebt || isEmpty
+    ? nodataImg
+    : advice?.strategy
+    ? personaImages[advice.strategy]
+    : null;
+    
   // ✅ alt ปลอดภัย
   const imageAlt =
     isBeforeStart
