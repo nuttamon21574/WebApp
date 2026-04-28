@@ -199,8 +199,8 @@ const handleSave = async () => {
       }
 
     }
-
-    await fetch("http://localhost:5000/api/calculate", {
+    const API_URL = "https://webapp-osky.onrender.com";
+    await fetch(`${API_URL}/api/calculate`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
