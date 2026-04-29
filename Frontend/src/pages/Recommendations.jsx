@@ -225,7 +225,7 @@ export default function Recommendations() {
                 <img
                   src={loadImg}
                   alt="loading"
-                  className="w-50 h-50 object-contain"
+                  className="w-100 h-100 object-contain"
                 />
 
                 <p className="text-gray-400 text-sm animate-pulse">
