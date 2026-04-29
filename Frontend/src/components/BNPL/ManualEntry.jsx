@@ -259,6 +259,15 @@ const handleSave = async () => {
             />
 
             <NumberField
+              label="Annual Interest Rate"
+              name="annualInterestRate"
+              value={item.annualInterestRate}
+              onChange={(e) => handleChange(index, e)}
+              step="0.01"
+              unit="%"
+            />
+
+            <NumberField
               label="Total Debt"
               name="totalDebt"
               value={item.totalDebt}
@@ -267,14 +276,7 @@ const handleSave = async () => {
               unit="Baht"
             />
 
-            <NumberField
-              label="Annual Interest Rate"
-              name="annualInterestRate"
-              value={item.annualInterestRate}
-              onChange={(e) => handleChange(index, e)}
-              step="0.01"
-              unit="%"
-            />
+            
 
             <SelectField
               label="Total Installments"
