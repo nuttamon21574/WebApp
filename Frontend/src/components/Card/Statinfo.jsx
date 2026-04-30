@@ -3,6 +3,7 @@ import loanImg from "@/assets/image/Loan.png";
 import payminImg from "@/assets/image/Paymin.png";
 import canpreImg from "@/assets/image/Canpre.png";
 import nodataImg from "@/assets/image/noData.png";
+import goodImg from "@/assets/image/good.png";
 
 export default function Statinfo({ advice, statusType }) {
 
@@ -13,6 +14,8 @@ export default function Statinfo({ advice, statusType }) {
   const isBeforeStart = statusType === "beforeStart";
   const isFuture = statusType === "future";
   const isNoDebt = statusType === "noDebt";
+  const isFallback = advice?.is_fallback === true;
+  const isDebtFreeGroup = advice?.group === "DEBT_FREE" || isNoDebt;
 
   // =============================
   // 🤖 PERSONA IMAGE
@@ -21,16 +24,19 @@ export default function Statinfo({ advice, statusType }) {
     CAN_PAY_MINIMUM: payminImg,
     CAN_PREPAY: canpreImg,
     FULL_CLEARANCE: fullClearanceImg,
-    LOAN_ROLLOVER: loanImg
+    LOAN_ROLLOVER: loanImg,
+    DEBT_FREE: goodImg
   };
 
   // ✅ ใช้ nodata สำหรับ state พิเศษ
   const personaImage =
-    isBeforeStart || isFuture || isNoDebt || isEmpty
-      ? nodataImg
-      : advice?.group
-      ? personaImages[advice.group]
-      : null;
+  isBeforeStart || isFuture || isEmpty || isFallback
+    ? nodataImg
+    : isDebtFreeGroup
+    ? goodImg
+    : advice?.group
+    ? personaImages[advice.group]
+    : null;
 
   // ✅ alt ปลอดภัย
   const imageAlt =
@@ -41,14 +47,25 @@ export default function Statinfo({ advice, statusType }) {
       : isNoDebt
       ? "no-debt"
       : isEmpty
-      ? "no-data"
-      : advice?.group;
+      ? "ยังไม่มีข้อมูลสำหรับเดือนนี้ กรุณาเพิ่มข้อมูล"
+      : isFallback
+      ? "ระบบไม่สามารถวิเคราะห์คำแนะนำได้ในขณะนี้"
+      : advice.financial_status;
 
   // =============================
   // 🔢 NORMALIZE DATA
   // =============================
-  const recommendedPayment = Number(advice?.recommended_payment ?? 0);
-  const remainingCash = Number(advice?.remaining_monthly_cash ?? 0);
+  //const recommendedPayment = Number(advice?.recommended_payment ?? 0);
+  //const remainingCash = Number(advice?.remaining_monthly_cash ?? 0);
+  const recommendedPayment =
+  advice?.recommended_payment != null
+    ? Number(advice.recommended_payment)
+    : null;
+
+  const remainingCash =
+    advice?.remaining_monthly_cash != null
+      ? Number(advice.remaining_monthly_cash)
+      : null;
 
   return (
     <div className="space-y-8">
@@ -81,6 +98,8 @@ export default function Statinfo({ advice, statusType }) {
                   ? "คุณยังไม่ได้เริ่มใช้งานในช่วงเดือนนี้"
                   : isFuture
                   ? "ยังไม่สามารถวิเคราะห์ล่วงหน้าได้"
+                  : isFallback
+                  ? "ระบบ AI ไม่สามารถวิเคราะห์ได้ (ลองใหม่อีกครั้ง)"
                   : isNoDebt
                   ? "คุณไม่มีหนี้ในเดือนนี้ 🎉"
                   : isEmpty
@@ -108,9 +127,11 @@ export default function Statinfo({ advice, statusType }) {
             <p className="text-5xl font-bold text-center">
               {isBeforeStart || isFuture
                 ? "-"
+                : isFallback
+                ? "-"
                 : isNoDebt
                 ? "0 ฿"
-                : isEmpty
+                : isEmpty || recommendedPayment == null
                 ? "-"
                 : recommendedPayment.toLocaleString() + " ฿"}
             </p>
@@ -124,9 +145,11 @@ export default function Statinfo({ advice, statusType }) {
             <p className="text-5xl font-bold text-center">
               {isBeforeStart || isFuture
                 ? "-"
+                : isFallback
+                ? "-"
                 : isNoDebt
                 ? "0 ฿"
-                : isEmpty
+                : isEmpty || remainingCash == null
                 ? "-"
                 : remainingCash.toLocaleString() + " ฿"}
             </p>
@@ -152,10 +175,14 @@ export default function Statinfo({ advice, statusType }) {
                   <li>คุณไม่มีภาระหนี้ในเดือนนี้</li>
                   <li>สามารถเริ่มวางแผนการออมได้</li>
                 </>
-              ) : isEmpty ? (
+              )  : isEmpty ? (
                 <>
                   <li>ยังไม่มีคำแนะนำในเดือนนี้</li>
                   <li>ลองเพิ่มข้อมูลรายรับ–รายจ่าย</li>
+                </>
+              ) : isFallback ? (
+                <>
+                  <li></li>
                 </>
               ) : advice.actions?.length > 0 ? (
                 advice.actions.map((item, index) => (
@@ -186,6 +213,10 @@ export default function Statinfo({ advice, statusType }) {
                 <>
                   <li>เมื่อมีข้อมูล ระบบจะช่วยวิเคราะห์การเงินของคุณ</li>
                   <li>เห็นภาพรวมการเงินชัดเจนขึ้น</li>
+                </>
+              ) : isFallback ? (
+                <>
+                  <li></li>
                 </>
               ) : advice.benefits?.length > 0 ? (
                 advice.benefits.map((item, index) => (

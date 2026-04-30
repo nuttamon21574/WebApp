@@ -14,10 +14,10 @@ export default function Recommendations() {
   // 📅 CURRENT MONTH
   // =============================
   const getCurrentMonth = () => {
-    const now = new Date();
-    const thai = new Date(
-      now.toLocaleString("en-US", { timeZone: "Asia/Bangkok" })
-    );
+  const now = new Date();
+  const thai = new Date(
+    now.toLocaleString("en-US", { timeZone: "Asia/Bangkok" })
+  );
 
     return `${thai.getFullYear()}-${String(
       thai.getMonth() + 1
@@ -71,6 +71,7 @@ export default function Recommendations() {
         setLoading(true);
 
         const currentMonth = getCurrentMonth();
+        const isCurrentMonth = selectedMonth === currentMonth;
         const startMonth = getStartMonthFromUser(user);
 
         if (!startMonth) return;
@@ -117,30 +118,50 @@ export default function Recommendations() {
             benefits: raw.benefits || [],
           };
 
+          const isFallback = raw.is_fallback === true;
+
+
           const isAllZero =
             normalized.recommended_payment === 0 &&
             normalized.remaining_monthly_cash === 0 &&
             normalized.actions.length === 0 &&
             normalized.benefits.length === 0;
 
-          setAdvice(isAllZero ? null : normalized);
-          setStatusType(isAllZero ? "noDebt" : "normal");
-          return;
+          if (isFallback) {
+            setAdvice(raw); // ไม่ต้อง normalize ทับ
+            setStatusType("fallback");
+          }
+          else if (isAllZero) {
+            setAdvice(null);
+            setStatusType("noDebt");
+          }
+          else {
+            setAdvice(normalized);
+            setStatusType("normal");
+          }
+          //return;
+          if (!isCurrentMonth) {
+            return;
+          }
         }
 
         // =============================
         // 🚀 GENERATE
         // =============================
+        if (!isCurrentMonth) {
+          console.log("⛔ SKIP GENERATE (NOT CURRENT MONTH)");
+          return;
+        }
+
         console.log("🆕 GENERATE");
-        
-        const API_URL = "https://webapp-osky.onrender.com";
-        await fetch(`${API_URL}/api/financial`, {
+
+        await fetch("http://localhost:5000/api/financial", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ uid: user.uid }),
         });
 
-        await fetch(`${API_URL}/api/ai`, {
+        await fetch("http://localhost:5000/api/ai", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -154,26 +175,35 @@ export default function Recommendations() {
         if (!isMounted) return;
 
         if (newSnap.exists()) {
-          const raw = newSnap.data();
+        const raw = newSnap.data();
 
-          const normalized = {
-            ...raw,
-            recommended_payment: Number(raw.recommended_payment || 0),
-            remaining_monthly_cash: Number(raw.remaining_monthly_cash || 0),
-            actions: raw.actions || [],
-            benefits: raw.benefits || [],
-          };
+        const normalized = {
+          ...raw,
+          recommended_payment: Number(raw.recommended_payment || 0),
+          remaining_monthly_cash: Number(raw.remaining_monthly_cash || 0),
+          actions: raw.actions || [],
+          benefits: raw.benefits || [],
+        };
 
-          const isAllZero =
-            normalized.recommended_payment === 0 &&
-            normalized.remaining_monthly_cash === 0 &&
-            normalized.actions.length === 0 &&
-            normalized.benefits.length === 0;
+        const isFallback = raw.is_fallback === true;
 
-          setAdvice(isAllZero ? null : normalized);
-        } else {
+        const isAllZero =
+          normalized.recommended_payment === 0 &&
+          normalized.remaining_monthly_cash === 0 &&
+          normalized.actions.length === 0 &&
+          normalized.benefits.length === 0;
+
+        if (isFallback) {
+          setAdvice(raw);
+          setStatusType("fallback");
+        } else if (isAllZero) {
           setAdvice(null);
+          setStatusType("noDebt");
+        } else {
+          setAdvice(normalized);
+          setStatusType("normal");
         }
+      }
 
       } catch (err) {
         console.error("🔥 FETCH ERROR:", err);
@@ -225,7 +255,7 @@ export default function Recommendations() {
                 <img
                   src={loadImg}
                   alt="loading"
-                  className="w-100 h-100 object-contain"
+                  className="w-50 h-50 object-contain"
                 />
 
                 <p className="text-gray-400 text-sm animate-pulse">
