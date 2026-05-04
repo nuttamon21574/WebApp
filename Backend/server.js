@@ -39,12 +39,13 @@ admin.initializeApp({ credential });
 const app = express();
 
 /* 🔥 แก้ CORS ให้ใช้ได้ทั้ง dev + prod */
+
 app.use(cors({
   origin: [
-    "http://localhost:5173",
-    process.env.FRONTEND_URL   // 👉 ใส่ URL frontend ใน Render ENV
+    "http://localhost:3000",
+    "https://web-app-five-virid.vercel.app"
   ],
-  methods: ["GET", "POST", "PUT", "DELETE"],
+  methods: ["GET", "POST"],
   credentials: true
 }));
 
