@@ -303,7 +303,8 @@ export default function BNPLDashboard() {
 
       setTransactions((prev) => prev.filter(tx => tx.id !== txId));
 
-      await fetch("http://localhost:5000/api/calculate", {
+      const API_URL = "https://webapp-osky.onrender.com";
+      await fetch(`${API_URL}/api/calculate`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -649,7 +650,8 @@ export default function BNPLDashboard() {
                       }
                     );
 
-                    await fetch("http://localhost:5000/api/calculate", {
+                    const API_URL = "https://webapp-osky.onrender.com";
+                    await fetch(`${API_URL}/api/calculate`, {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({ uid: user.uid }),
