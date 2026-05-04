@@ -155,13 +155,14 @@ export default function Recommendations() {
 
         console.log("🆕 GENERATE");
 
-        await fetch("http://localhost:5000/api/financial", {
+        const API_URL = "https://webapp-osky.onrender.com";
+        await fetch(`${API_URL}/api/financial`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ uid: user.uid }),
         });
 
-        await fetch("http://localhost:5000/api/ai", {
+        await fetch(`${API_URL}/api/ai`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
