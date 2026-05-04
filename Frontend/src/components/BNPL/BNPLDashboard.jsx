@@ -27,6 +27,7 @@ import {
 } from "recharts";
 
 import { useNavigate } from "react-router-dom";
+import { useLayoutEffect } from "react";
 
 export default function BNPLDashboard() {
   const [data, setData] = useState(null);
@@ -39,6 +40,7 @@ export default function BNPLDashboard() {
   const lastPayloadRef = useRef(null)
   const isFirstLoad = useRef(true)
   const navigate = useNavigate();
+  const scrollContainerRef = useRef(null);
 
   const toNumber = (val) =>
     typeof val === "number" ? val : parseFloat(val) || 0;
@@ -132,7 +134,7 @@ export default function BNPLDashboard() {
 
         history.push({
           date: d.createdAt?.toDate?.() || new Date(),
-          dti: (d.installment_to_income || 0) * 100,
+          dti: Number(d.installment_to_income || 0) * 100
         });
       });
 
@@ -197,14 +199,12 @@ export default function BNPLDashboard() {
 
 }, [userData, transactions]);
 
-if (loading)
-  return <div className="p-8 text-lg">Loading...</div>;
-
-    const currentDTI = userData?.income
+// ย้ายส่วนนี้ขึ้นมาไว้ก่อน useLayoutEffect
+  const currentDTI = userData?.income && data
     ? (data.outstanding / userData.income) * 100
     : 0;
 
-    const mergedDTI = [
+  const mergedDTI = [
     ...dtiHistory,
     {
       date: new Date(),
@@ -212,6 +212,29 @@ if (loading)
       isCurrent: true,
     },
   ];
+
+ useLayoutEffect(() => {
+    if (scrollContainerRef.current && mergedDTI.length > 0) {
+      // เลื่อนไปทางขวาสุดเพื่อดูจุดล่าสุด
+      scrollContainerRef.current.scrollLeft = scrollContainerRef.current.scrollWidth;
+    }
+  }, [mergedDTI]); 
+
+  // 4. เงื่อนไข Loading (ควรอยู่หลัง Hooks เสมอเพื่อป้องกัน Error "Rendered fewer hooks than expected")
+  if (loading || !data) return <div className="p-8 text-lg">Loading...</div>;
+
+  
+    /*const mergedDTI = [
+    ...dtiHistory,
+    {
+      date: new Date(),
+      dti: currentDTI,
+      isCurrent: true,
+    },
+    
+  ];*/
+  
+  
 
   const renderDot = (props) => {
   const { cx, cy, payload } = props;
@@ -280,8 +303,7 @@ if (loading)
 
       setTransactions((prev) => prev.filter(tx => tx.id !== txId));
 
-      const API_URL = "https://webapp-osky.onrender.com";
-      await fetch(`${API_URL}/api/calculate`, {
+      await fetch("http://localhost:5000/api/calculate", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -348,36 +370,137 @@ if (loading)
           </ResponsiveContainer>
         </div>
 
-        {/* DTI */}
-        <div className="bg-white p-5 rounded-2xl shadow">
-          <h2 className="text-xl font-bold mb-4">
-            DTI Trend
-          </h2>
+        {/* --- ส่วนของ DTI Trend Card --- */}
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+  <h2 className="text-xl font-bold mb-6 text-gray-800">DTI Trend</h2>
 
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={mergedDTI}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="date"
-                tickFormatter={(date) =>
-                  new Date(date).toLocaleDateString()
-                }
-              />
-              <YAxis />
-              <Tooltip
-                formatter={(value) => [`${Number(value).toFixed(1)}%`, "DTI"]}
-              />
-              <Line
-                type="monotone"
-                dataKey="dti"
-                stroke="#8884d8"
-                strokeWidth={3}
-                dot={renderDot}
+  {mergedDTI && mergedDTI.length > 0 ? (
+    <>
+      {/* =========================
+          GRAPH SECTION
+      ========================= */}
+      <div className="relative w-full" style={{ height: "300px" }}>
+        
+        {/* แกน Y */}
+        <div 
+          className="absolute left-0 top-0 bottom-0 bg-white/90 backdrop-blur-sm"
+          style={{ width: '50px', zIndex: 20, paddingBottom: '40px', pointerEvents: 'none' }}
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={mergedDTI} margin={{ top: 10, right: 0, left: 10, bottom: 0 }}>
+              <Line dataKey="dti" stroke="transparent" dot={false} isAnimationActive={false} />
+              <YAxis 
+                domain={[-10, 100]} 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fontSize: 11, fill: "#94a3b8", fontWeight: 'bold' }}
+                width={40}
+                ticks={[0, 25, 50, 75, 100]}
               />
             </LineChart>
           </ResponsiveContainer>
         </div>
 
+        {/* scroll graph */}
+        <div 
+          ref={scrollContainerRef}
+          className="overflow-x-auto overflow-y-visible custom-scrollbar"
+          style={{ width: '100%', height: '100%', scrollBehavior: 'smooth' }}
+        >
+          <div style={{ 
+            width: Math.max(mergedDTI.length * 70, 600), 
+            height: "100%",
+            overflow: "visible"
+          }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart 
+                data={mergedDTI}
+                margin={{ top: 10, right: 50, left: 50, bottom: 0 }}
+                style={{ overflow: "visible" }}
+              >
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                
+                <XAxis
+                  dataKey="date"
+                  height={40}
+                  tick={{ fontSize: 11, fill: "#94a3b8", dy: 10 }}
+                  tickFormatter={(date) => {
+                    const d = new Date(date);
+                    return d.toLocaleDateString("en-US", { month: 'short', day: 'numeric' });
+                  }}
+                />
+
+                <YAxis hide domain={[-5, 100]} />
+
+                <Tooltip 
+                  allowEscapeViewBox={{ x: true, y: true }}
+                  offset={20}
+                  wrapperStyle={{ zIndex: 9999, pointerEvents: "none" }}
+                  contentStyle={{
+                    borderRadius: '12px',
+                    border: 'none',
+                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                    fontSize: '13px',
+                    backgroundColor: '#fff'
+                  }}
+                  formatter={(val) => [`${Number(val).toFixed(2)}%`, "DTI"]}
+                />
+
+                <Line
+                  type="monotone"
+                  dataKey="dti"
+                  stroke="#6366f1"
+                  strokeWidth={3}
+                  dot={renderDot}
+                  isAnimationActive={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* =========================
+          🔥 SUMMARY (ถูกตำแหน่ง)
+      ========================= */}
+      <div className="mt-5 border-t pt-4 flex items-center justify-between">
+        
+        <div>
+          <p className="text-sm text-gray-500">Current DTI</p>
+          <p className="text-lg font-semibold text-gray-800">
+            {currentDTI.toFixed(2)}%
+          </p>
+        </div>
+
+        <div className="text-right">
+          <p
+            className={`text-sm font-semibold ${
+              currentDTI > 50
+                ? "text-red-500"
+                : currentDTI > 30
+                ? "text-yellow-500"
+                : "text-green-500"
+            }`}
+          >
+            {currentDTI > 50
+              ? "High Risk"
+              : currentDTI > 30
+              ? "Moderate"
+              : "Healthy"}
+          </p>
+
+          <p className="text-xs text-gray-400">
+            Debt-to-Income Ratio
+          </p>
+        </div>
+      </div>
+    </>
+  ) : (
+    <div className="h-[300px] flex items-center justify-center text-gray-400">
+      Loading...
+    </div>
+  )}
+</div>
       </div>
 
       {/* 🔥 TRANSACTIONS */}
@@ -407,7 +530,7 @@ if (loading)
           ))}
         </div>
 
-<div className="max-h-[380px] overflow-y-auto">
+<div className="max-h-[380px] ">
   {filteredTransactions.length === 0 ? (
     <p className="text-gray-500">No transactions</p>
   ) : (
@@ -526,8 +649,7 @@ if (loading)
                       }
                     );
 
-                    const API_URL = "https://webapp-osky.onrender.com";
-                    await fetch(`${API_URL}/api/calculate`, {
+                    await fetch("http://localhost:5000/api/calculate", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({ uid: user.uid }),

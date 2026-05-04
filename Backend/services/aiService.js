@@ -86,6 +86,23 @@ async function generateFinancialAdvice(user) {
   const total_debt = Number(user.total_debt);
   const total_installment = Number(user.total_installment);
 
+  const debts = [
+    {
+      name: "SPAYLATER",
+      outstanding: Number(user.spaylater_outstanding_debt || 0),
+      installment: Number(user.spaylater_monthly_installment || 0),
+      missed: Number(user.spaylater_missed_installments || 0),
+      annualInterestRate: Number(user.spaylater_annualInterestRate || 0),
+    },
+    {
+      name: "LAZPAYLATER",
+      outstanding: Number(user.lazpaylater_outstanding_debt || 0),
+      installment: Number(user.lazpaylater_monthly_installment || 0),
+      missed: Number(user.lazpaylater_missed_installments || 0),
+      annualInterestRate: Number(user.lazpaylater_annualInterestRate || 0),
+    }
+  ];
+
   // 🔥 Allow zero income for now
   // if (income <= 0) {
   //   return fallbackResponse;
@@ -102,6 +119,37 @@ async function generateFinancialAdvice(user) {
   //   return fallbackResponse;
   // }
 
+  function pickAvalanche(debts) {
+    return debts
+      .filter(d => d.outstanding > 0)
+      .sort((a, b) => {
+        if (b.annualInterestRate !== a.annualInterestRate) {
+          return b.annualInterestRate - a.annualInterestRate;
+        }
+        return b.outstanding - a.outstanding;
+      })[0] || null;
+  }
+
+  function pickSnowball(debts) {
+    return debts
+      .filter(d => d.outstanding > 0)
+      .sort((a, b) => {
+        if (a.outstanding !== b.outstanding) {
+          return a.outstanding - b.outstanding;
+        }
+        return b.missed - a.missed;
+      })[0] || null;
+  }
+
+  function pickMinimum(debts) {
+    return debts
+      .filter(d => d.outstanding > 0)
+      .map(d => ({
+        name: d.name,
+        payment: d.installment
+      }));
+  }
+
   /* ===============================
      3️⃣ DETERMINE GROUP + STRATEGY
   =============================== */
@@ -112,6 +160,7 @@ async function generateFinancialAdvice(user) {
   let group = "UNKNOWN";
   let strategy = "NONE";
   let recommended_payment = 0;
+  let priority_debt = null;
 
   if (persona === "Full Clearance" && balance > total_debt) {
 
@@ -129,22 +178,23 @@ async function generateFinancialAdvice(user) {
       strategy = "MINIMUM_ONLY";
       recommended_payment = total_installment;
 
-    }
+      priority_debt = pickMinimum(debts);
 
-    else if (riskTier === "MEDIUM") {
+    } else if (riskTier === "MEDIUM") {
 
       strategy = "SNOWBALL";
       recommended_payment = Math.min(balance * 0.8, total_debt);
 
-    }
+      priority_debt = pickSnowball(debts);
 
-    else {
+    } else {
 
       strategy = "AVALANCHE";
       recommended_payment = Math.min(balance * 0.8, total_debt);
 
-    }
+      priority_debt = pickAvalanche(debts);
 
+    }
   }
 
   else if (persona === "Can Pay Minimum") {
@@ -194,6 +244,7 @@ async function generateFinancialAdvice(user) {
     persona: ${persona}
     group: ${group}
     strategy: ${strategy}
+    priority_debt: ${priority_debt ? priority_debt.name : "NONE"}
 
     กฎสำคัญ:
     - ถ้า total_debt = 0 → ต้องใช้ group = "DEBT_FREE" เท่านั้น
@@ -204,6 +255,10 @@ async function generateFinancialAdvice(user) {
     - actions ต้องมี 3 ข้อพอดี
     - benefits ต้องมี 3 ข้อพอดี
     - ข้อความต้องสั้น กระชับ และนำไปใช้ได้จริง
+    - priority_debt คือ platform ที่ต้องปิดก่อน (คำนวณแล้วจากระบบ)
+    - ถ้า priority_debt != "NONE":
+      → actions[0] MUST ระบุ platform นี้เท่านั้น
+      → ห้ามเปลี่ยนเป็น platform อื่นเด็ดขาด
 
     การจัดกลุ่ม (เลือกได้แค่ 1):
 
@@ -220,8 +275,8 @@ async function generateFinancialAdvice(user) {
     3) CAN_PREPAY
     - balance > ยอดผ่อนรายเดือน
     - risk_tier:
-      - low → Avalanche (ดอกเบี้ยสูงก่อน)
-      - medium → Snowball (ยอดเล็กก่อน)
+      - low → Avalanche (ดอกเบี้ยสูงก่อนระบุว่าควรปิดหนี้ของ spaylater หรือ lazpaylater ก่อน)
+      - medium → Snowball (ยอดเล็กก่อนระบุว่าควรปิดหนี้ของ spaylater หรือ lazpaylater ก่อน)
       - high → จ่ายขั้นต่ำ
 
     - ต้องระบุหนี้ที่ควรปิดก่อน 1 ก้อน:
