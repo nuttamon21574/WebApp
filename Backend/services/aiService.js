@@ -324,28 +324,44 @@ async function generateFinancialAdvice(user) {
 
     console.log("🤖 Generating financial advice...");
 
-    const response = await axios.post(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
-      {
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.1,
-          responseMimeType: "application/json",
-        },
-      },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          "X-goog-api-key": process.env.GEMINI_API_KEY,
-        },
+    const models = [
+      "gemini-2.5-flash",
+      "gemini-2.5-flash-lite"
+    ];
+
+    for (const model of models) {
+      try {
+        const response = await axios.post(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+          {
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.1,
+              responseMimeType: "application/json",
+            },
+          },
+          {
+            headers: {
+              "Content-Type": "application/json",
+              "X-goog-api-key": process.env.GEMINI_API_KEY,
+            },
+          }
+        );
+
+        const text =
+          response.data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (!text) continue;
+
+        try {
+          return JSON.parse(text);
+        } catch {
+          continue;
+        }
+
+      } catch (err) {
+        console.log(`❌ ${model} failed`);
       }
-    );
-
-    const text =
-      response.data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!text) {
-      return fallbackResponse;
     }
 
     let parsed;
