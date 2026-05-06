@@ -75,7 +75,7 @@ export default function Dashboard() {
 
           <div className="flex justify-between mb-6">
             <p className="text-3xl font-bold text-amber-50">
-              Dashboard
+              Financial Dashboard
             </p>
           </div>
 

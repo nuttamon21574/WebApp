@@ -605,21 +605,6 @@ export default function BNPLDashboard() {
                       amount = tx.amount;
                     }
 
-                    /*if (action === "postpone") {
-                      await updateDoc(
-                        doc(db, "bnplDebt", user.uid, "items", tx.id),
-                        { status: "postponed" }
-                      );
-
-                      await fetch("http://localhost:5000/api/calculate", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ uid: user.uid }),
-                      });
-
-                      e.target.value = "";
-                      return;
-                    }*/
                    if (action === "postpone") {
                     await updateDoc(
                       doc(db, "bnplDebt", user.uid, "items", tx.id),
