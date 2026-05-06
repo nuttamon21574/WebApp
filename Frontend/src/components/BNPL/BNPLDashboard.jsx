@@ -476,18 +476,18 @@ export default function BNPLDashboard() {
         <div className="text-right">
           <p
             className={`text-sm font-semibold ${
-              currentDTI > 50
+              currentDTI >= 50
                 ? "text-red-500"
-                : currentDTI > 30
+                : currentDTI >= 36
                 ? "text-yellow-500"
                 : "text-green-500"
             }`}
           >
-            {currentDTI > 50
+            {currentDTI >= 50
               ? "High Risk"
-              : currentDTI > 30
+              : currentDTI >= 36
               ? "Moderate"
-              : "Healthy"}
+              : "Excellent"}
           </p>
 
           <p className="text-xs text-gray-400">
