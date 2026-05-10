@@ -238,28 +238,28 @@ const handleSave = async () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm items-stretch">
             <TextField
-              label="Product Name"
+              label="ชื่อสินค้า (Product Name)"
               name="productName"
               value={item.productName}
               onChange={(e) => handleChange(index, e)}
             />
 
             <DateField
-              label="Purchase Date"
+              label="วันที่ซื้อ (Purchase Date)"
               name="purchaseDate"
               value={item.purchaseDate}
               onChange={(e) => handleChange(index, e)}
             />
 
             <DateField
-              label="Latest Payment Due Date"
+              label="วันที่ครบกำหนดชำระ (Latest Payment Due Date)"
               name="dueDate"
               value={item.dueDate}
               onChange={(e) => handleChange(index, e)}
             />
 
             <NumberField
-              label="Annual Interest Rate"
+              label="ดอกเบี้ยต่อปี (Annual Interest Rate)"
               name="annualInterestRate"
               value={item.annualInterestRate}
               onChange={(e) => handleChange(index, e)}
@@ -268,7 +268,7 @@ const handleSave = async () => {
             />
 
             <NumberField
-              label="Total Debt"
+              label="ยอดหนี้รวม (Total Debt)"
               name="totalDebt"
               value={item.totalDebt}
               onChange={(e) => handleChange(index, e)}
@@ -279,7 +279,7 @@ const handleSave = async () => {
             
 
             <SelectField
-              label="Total Installments"
+              label="งวดทั้งหมด (Total Installments)"
               name="totalInstallments"
               value={item.totalInstallments}
               onChange={(e) => handleChange(index, e)}
@@ -289,7 +289,7 @@ const handleSave = async () => {
             />
 
             <NumberField
-              label="Monthly Installment"
+              label="งวดรายเดือน (Monthly Installment)"
               name="monthlyInstallment"
               value={item.monthlyInstallment}
               onChange={(e) => handleChange(index, e)}
@@ -298,7 +298,7 @@ const handleSave = async () => {
             />
 
             <NumberField
-              label="Outstanding Debt"
+              label="ยอดหนี้ค้างชำระ (Outstanding Debt)"
               name="outstandingDebt"
               value={item.outstandingDebt}
               onChange={(e) => handleChange(index, e)}
