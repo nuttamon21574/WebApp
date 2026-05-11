@@ -16,7 +16,7 @@ export default function FormContainer() {
   const navigate = useNavigate()
 
   const [form, setForm] = useState({
-    gender: "",
+    //gender: "",
     age: "",
     year: "",
     income: "",
@@ -43,7 +43,7 @@ export default function FormContainer() {
           const data = snap.data()
 
           setForm({
-            gender: data.gender || "",
+            //gender: data.gender || "",
             age: data.age ?? "",
             year: data.year || "",
             income: data.income ?? "",
@@ -63,7 +63,7 @@ export default function FormContainer() {
   /* ---------------- เช็คกรอกครบ ---------------- */
 
   const isComplete =
-    form.gender &&
+    //form.gender &&
     form.age !== "" &&
     form.year &&
     form.income !== "" &&
@@ -73,88 +73,123 @@ export default function FormContainer() {
 
   /* ---------------- ฟังก์ชัน save จริง ---------------- */
 
-  const saveData = async () => {
-    const user = auth.currentUser
-    if (!user) return
+  const saveData = async (riskTier) => {
+  const user = auth.currentUser
+  if (!user) return
 
-    const income = Number(form.income)
-    const expense = Number(form.expense)
+  const income = Number(form.income)
+  const expense = Number(form.expense)
 
-    await setDoc(
-      doc(db, "users", user.uid),
-      {
-        gender: form.gender,
-        age: Number(form.age),
-        year: form.year,
+  const balance = income - expense
+  const total_limit =
+    Number(form.spaylater_limit) +
+    Number(form.lazpaylater_limit)
 
-        income: income,
-        expense: expense,
+  // =========================
+  // SAVE DATA
+  // =========================
+  await setDoc(
+    doc(db, "users", user.uid),
+    {
+      ...form,
+      income,
+      expense,
+      balance,
+      total_limit,
+      risk_tier: riskTier,
+      updatedAt: new Date(),
+    },
+    { merge: true }
+  )
 
-        spaylater_limit: Number(form.spaylater_limit),
-        lazpaylater_limit: Number(form.lazpaylater_limit),
-
-        balance: income - expense,
-        total_limit: Number(form.spaylater_limit) + Number(form.lazpaylater_limit),
-        risk_tier: null,
-
-        updatedAt: new Date(),
-      },
-      { merge: true }
+  // =========================
+  // 🔥 ADD THIS (no timeout)
+  // =========================
+  const getCurrentMonth = () => {
+    const now = new Date()
+    const thai = new Date(
+      now.toLocaleString("en-US", { timeZone: "Asia/Bangkok" })
     )
 
-    navigate("/BNPL")
+    return `${thai.getFullYear()}-${String(
+      thai.getMonth() + 1
+    ).padStart(2, "0")}`
   }
 
+  await fetch("http://localhost:5000/api/calculate", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      uid: user.uid,
+      month: getCurrentMonth(), // ✅ สำคัญ
+    }),
+  })
+
+  // =========================
+  // 🚀 navigate AFTER AI
+  // =========================
+  // navigate("/BNPL")
+}
   /* ---------------- Save / Update ---------------- */
 
   const handleSave = async () => {
-    const user = auth.currentUser
+  const user = auth.currentUser
 
-    if (!user) {
-      alert("Please login first")
-      return
-    }
-
-    if (!isComplete) {
-      alert("Please fill all fields")
-      return
-    }
-
-    try {
-      const income = Number(form.income)
-      const expense = Number(form.expense)
-
-      if (isNaN(income) || isNaN(expense)) {
-        alert("Income / Expense must be numbers")
-        return
-      }
-
-      if (expense === 0) {
-        alert("Expense cannot be 0")
-        return
-      }
-
-      /* --------- คำนวณ I/E --------- */
-
-      const ratio = income / expense
-      setIeRatio(ratio)
-
-      /* --------- ถ้า I/E ≤ 1 แสดง popup --------- */
-
-      if (ratio <= 1) {
-        setShowCard(true)
-        return
-      }
-
-      /* --------- ปกติ save เลย --------- */
-
-      await saveData()
-
-    } catch (err) {
-      console.error(err)
-      alert("Failed to save data")
-    }
+  if (!user) {
+    alert("Please login first")
+    return
   }
+
+  if (!isComplete) {
+    alert("Please fill all fields")
+    return
+  }
+
+  try {
+    const income = Number(form.income)
+    const expense = Number(form.expense)
+
+    if (isNaN(income) || isNaN(expense)) {
+      alert("Income / Expense must be numbers")
+      return
+    }
+
+    if (expense === 0) {
+      alert("Expense cannot be 0")
+      return
+    }
+
+    const ratio = income / expense
+    setIeRatio(ratio)
+
+    /* 🔥 CALCULATE RISK */
+    let riskTier = "LOW"
+
+    if (ratio <= 1) {
+      riskTier = "HIGH"
+    } else if (ratio <= 1.5) {
+      riskTier = "MED"
+    }
+
+    /* popup */
+    if (ratio <= 1) {
+      setShowCard(true)
+    }
+
+    /* save */
+    await saveData(riskTier)
+
+    if (ratio > 1) {
+      navigate("/BNPL")
+    }
+
+  } catch (err) {
+    console.error(err)
+    alert("Failed to save data")
+  }
+}
 
   return (
     <div>
@@ -165,20 +200,6 @@ export default function FormContainer() {
 
       <div className="space-y-4">
 
-        <FormRow label="Gender">
-          <select
-            className="rounded-xl px-4 py-2 bg-white w-full"
-            value={form.gender}
-            onChange={(e) =>
-              setForm({ ...form, gender: e.target.value })
-            }
-          >
-            <option value="">Select</option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-            <option value="other">Other</option>
-          </select>
-        </FormRow>
 
         <FormRow label="Age">
           <input
@@ -268,9 +289,9 @@ export default function FormContainer() {
         <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">
           <IncreaseIncomeCard
             ieRatio={ieRatio}
-            onClose={async () => {
-              setShowCard(false)
-            }}
+            onClose={() => {
+            setShowCard(false) // ✅ แค่ปิด popup
+          }}
           />
         </div>
       )}
