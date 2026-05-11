@@ -63,7 +63,7 @@ export default function FormContainer() {
   /* ---------------- เช็คกรอกครบ ---------------- */
 
   const isComplete =
-    form.gender &&
+    //form.gender &&
     form.age !== "" &&
     form.year &&
     form.income !== "" &&
