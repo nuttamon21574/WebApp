@@ -385,6 +385,18 @@ export default function BNPLDashboard() {
                 axisLine={false}
                 tickLine={false}
                 width={80}
+                label={{
+                  value: "Amount (THB)",
+                  angle: -90,
+                  position: "insideLeft",
+                  offset: -5,
+                  style: {
+                    textAnchor: "middle",
+                    fill: "#64748b",
+                    fontSize: 12,
+                    fontWeight: "bold",
+                  }
+                }}
               />
 
               <Tooltip
@@ -439,6 +451,18 @@ export default function BNPLDashboard() {
                 tickFormatter={(value) => `${value}%`}
                 width={40}
                 ticks={[0, 25, 50, 75, 100]}
+                 label={{
+                  value: "Debt-to-Income Ratio",
+                  angle: -90,
+                  position: "insideLeft",
+                  offset: -5,
+                  style: {
+                    textAnchor: "middle",
+                    fill: "#64748b",
+                    fontSize: 12,
+                    fontWeight: "bold",
+                  }
+                }}
               />
             </LineChart>
           </ResponsiveContainer>
