@@ -334,9 +334,16 @@ export default function BNPLDashboard() {
       <div className="grid md:grid-cols-2 gap-6 mb-8">
         <div className="bg-white p-5 rounded-2xl shadow">
           <p>Total Debt</p>
-          <p className="text-3xl font-bold">
-            {data.outstanding.toLocaleString()}
-          </p>
+
+          <div className="flex items-end justify-between">
+            <p className="text-3xl font-bold">
+              {data.outstanding.toLocaleString()}
+            </p>
+
+            <span className="text-gray-500 font-medium">
+              THB
+            </span>
+          </div>
         </div>
 
         <div className="bg-white p-5 rounded-2xl shadow">
@@ -355,25 +362,59 @@ export default function BNPLDashboard() {
         {/* BAR */}
         <div className="bg-white p-5 rounded-2xl shadow">
           <h2 className="text-xl font-bold mb-4">
-            BNPL Snapshot
+            Buy Now Pay Later Snapshot
           </h2>
 
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={platformCompareData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
+            <BarChart
+              data={platformCompareData}
+              margin={{ top: 20, right: 20, left: 20, bottom: 20 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+
+              <XAxis
+                dataKey="name"
+                tick={{ fontSize: 14, fill: "#4B5563" }}
+                axisLine={false}
+                tickLine={false}
+              />
+
+              <YAxis
+                tickFormatter={(value) => `฿${value.toLocaleString()}`}
+                tick={{ fontSize: 13, fill: "#4B5563" }}
+                axisLine={false}
+                tickLine={false}
+                width={80}
+              />
+
+              <Tooltip
+                formatter={(value) => [`฿${value.toLocaleString()}`, "Amount"]}
+                contentStyle={{
+                  borderRadius: "12px",
+                  border: "none",
+                }}
+              />
+
               <Legend />
-              <Bar dataKey="outstanding" fill="#6B21A8" />
-              <Bar dataKey="available" fill="#C084FC" />
+
+              <Bar
+                dataKey="outstanding"
+                fill="#6B21A8"
+                radius={[8, 8, 0, 0]}
+              />
+
+              <Bar
+                dataKey="available"
+                fill="#C084FC"
+                radius={[8, 8, 0, 0]}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         {/* --- ส่วนของ DTI Trend Card --- */}
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-  <h2 className="text-xl font-bold mb-6 text-gray-800">DTI Trend</h2>
+  <h2 className="text-xl font-bold mb-6 text-gray-800">Debt-to-Income Ratio Trend</h2>
 
   {mergedDTI && mergedDTI.length > 0 ? (
     <>
@@ -395,6 +436,7 @@ export default function BNPLDashboard() {
                 axisLine={false} 
                 tickLine={false} 
                 tick={{ fontSize: 11, fill: "#94a3b8", fontWeight: 'bold' }}
+                tickFormatter={(value) => `${value}%`}
                 width={40}
                 ticks={[0, 25, 50, 75, 100]}
               />
@@ -431,7 +473,7 @@ export default function BNPLDashboard() {
                   }}
                 />
 
-                <YAxis hide domain={[-5, 100]} />
+                <YAxis hide domain={[-5, 100]} tickFormatter={(value) => `${value}%`} />
 
                 <Tooltip 
                   allowEscapeViewBox={{ x: true, y: true }}
@@ -467,7 +509,7 @@ export default function BNPLDashboard() {
       <div className="mt-5 border-t pt-4 flex items-center justify-between">
         
         <div>
-          <p className="text-sm text-gray-500">Current DTI</p>
+          <p className="text-sm text-gray-500">Current Debt-to-Income Ratio</p>
           <p className="text-lg font-semibold text-gray-800">
             {currentDTI.toFixed(2)}%
           </p>
@@ -605,6 +647,22 @@ export default function BNPLDashboard() {
                       amount = tx.amount;
                     }
 
+                    /*if (action === "postpone") {
+                      await updateDoc(
+                        doc(db, "bnplDebt", user.uid, "items", tx.id),
+                        { status: "postponed" }
+                      );
+
+                      const API_URL = "https://webapp-osky.onrender.com";
+                      await fetch(`${API_URL}/api/calculate`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ uid: user.uid }),
+                      });
+
+                      e.target.value = "";
+                      return;
+                    }*/
                    if (action === "postpone") {
                     await updateDoc(
                       doc(db, "bnplDebt", user.uid, "items", tx.id),
