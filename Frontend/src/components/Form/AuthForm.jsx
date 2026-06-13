@@ -202,6 +202,7 @@ export default function AuthForm({ type = "login" }) {
           value={username}
           onChange={handleChange("username", setUsername)}
           error={errors.username}
+          className="text-black"
         />
       )}
 
@@ -212,6 +213,7 @@ export default function AuthForm({ type = "login" }) {
         value={email}
         onChange={handleChange("email", setEmail)}
         error={errors.email}
+        className="text-black"
       />
 
       <InputForm
@@ -221,6 +223,7 @@ export default function AuthForm({ type = "login" }) {
         value={password}
         onChange={handleChange("password", setPassword)}
         error={errors.password}
+        className="text-black"
       />
 
       {!isRegister && (
@@ -243,6 +246,7 @@ export default function AuthForm({ type = "login" }) {
           value={confirm}
           onChange={handleChange("confirm", setConfirm)}
           error={errors.confirm}
+          className="text-black"
         />
       )}
 
