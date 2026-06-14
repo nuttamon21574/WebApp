@@ -336,7 +336,8 @@ async function generateFinancialAdvice(user) {
           {
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
-              temperature: 0.1,
+              temperature: 0.4,
+              topP: 0.9,
               responseMimeType: "application/json",
             },
           },
